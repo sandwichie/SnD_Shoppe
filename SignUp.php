@@ -11,8 +11,6 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 if (isset($_POST['create'])) {
     $id = $_SESSION['user_id'] ?? rand(1, 1000); // Fallback for testing
-    $firstname = $_POST['fName'];
-    $lastname = $_POST['lName'];
     $email = $_POST['email'];
     $password = $_POST['psw'];
     $repeat_password = $_POST['psw-repeat'];
@@ -33,9 +31,9 @@ if (isset($_POST['create'])) {
         if ($stmt->rowCount() > 0) {
             echo '<p style="color:red; text-align:center;">Email already exists. Please use a different email.</p>';
         } else {
-            $sql = "UPDATE users_credentials SET FIRSTNAME = ?, LASTNAME = ?, EMAIL = ?, PASSWORD = ?, GENDER = ?, BIRTHDATE = ?, ADDRESS = ?, PHONE = ? WHERE ID = ?";
+            $sql = "UPDATE users_credentials SET EMAIL = ?, PASSWORD = ?, GENDER = ?, BIRTHDATE = ?, ADDRESS = ?, PHONE = ? WHERE ID = ?";
             $stmt = $pdo->prepare($sql);
-           if ($stmt->execute([$firstname, $lastname, $email, $hashed_password, $gender, $birthdate, $address, $phone, $id])) {
+           if ($stmt->execute([$email, $hashed_password, $gender, $birthdate, $address, $phone, $id])) {
             echo "<div id='overlay' style='display:none;'>Loading...</div>";
             echo "<script>
                     document.addEventListener('DOMContentLoaded', function() {
@@ -75,6 +73,7 @@ if (isset($_POST['cancel'])) {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,6 +88,7 @@ if (isset($_POST['cancel'])) {
     /*========================================================SIGNUP===================================*/
     body {
         background: radial-gradient(#fff,#FFF9E6);
+        font-family: "Playfair Display", serif;
     }
 
     .containersignup {
@@ -253,59 +253,53 @@ if (isset($_POST['cancel'])) {
         <h1>SIGN UP</h1>
         <p>Please fill in this form to create an account or <a href="haveacc.php">Login</a></p>
 
-        <form action="" method="post" class="form" id="signupForm">
+    <form action="" method="post" class="form" id="signupForm">
 
-            <label for="email">First Name</label>
-            <input type="text" placeholder="Enter First Name" name="fName" autocomplete="off" required />
+        <label for="email">Email</label>
+        <input type="text" placeholder="Enter Email" name="email" autocomplete="off" required />
 
-            <label for="email">Last Name</label>
-            <input type="text" placeholder="Enter Last Name" name="lName" autocomplete="off" required />
+        <label for="psw">Password</label>
+        <div class="password-container">
+            <input type="password" placeholder="Enter Password" name="psw" id="password" autocomplete="off" required />
+            <i class="far fa-eye" id="togglePassword1" style="cursor: pointer;"></i>
+        </div>
 
-            <label for="email">Email</label>
-            <input type="text" placeholder="Enter Email" name="email" autocomplete="off" required />
+        <label for="psw-repeat">Repeat Password</label>
+        <div class="password-container">
+            <input type="password" placeholder="Repeat Password" name="psw-repeat" id="passwordRepeat" autocomplete="off" required />
+            <i class="far fa-eye" id="togglePassword2" style="cursor: pointer;"></i>
+        </div>
 
-            <label for="psw">Password</label>
-            <div class="password-container">
-                <input type="password" placeholder="Enter Password" name="psw" id="password" autocomplete="off" required />
-                <i class="far fa-eye" id="togglePassword1" style="cursor: pointer;"></i>
-            </div>
+        <label for="dob">Date of Birth</label>
+        <input type="date" name="dob" required />
 
-            <label for="psw-repeat">Repeat Password</label>
-            <div class="password-container">
-                <input type="password" placeholder="Repeat Password" name="psw-repeat" id="passwordRepeat" autocomplete="off" required />
-                <i class="far fa-eye" id="togglePassword2" style="cursor: pointer;"></i>
-            </div>
+        <label for="gender">Gender</label>
+        <div class="gender-options">
+            <label><input type="radio" name="gender" value="male" required /> Male</label><br/>
+            <label><input type="radio" name="gender" value="female" required /> Female</label><br/>
+            <label><input type="radio" name="gender" value="prefer_not_say" required /> Prefer not to say</label>
+        </div>
 
-            <label for="dob">Date of Birth</label>
-            <input type="date" name="dob" required />
+        <label for="address">Address</label>
+        <input type="text" placeholder="Enter Address" name="address" autocomplete="off" required />
 
-            <label for="gender">Gender</label>
-            <div class="gender-options">
-                <label><input type="radio" name="gender" value="male" required /> Male</label><br/>
-                <label><input type="radio" name="gender" value="female" required /> Female</label><br/>
-                <label><input type="radio" name="gender" value="prefer_not_say" required /> Prefer not to say</label>
-            </div>
+        <label for="phone">Phone Number</label>
+        <input type="tel" placeholder="Enter Phone Number" name="phone" autocomplete="off" maxlength="11" required/>
 
-            <label for="address">Address</label>
-            <input type="text" placeholder="Enter Address" name="address" autocomplete="off" required />
+        <!--<label>
+            <input type="checkbox" checked="checked" name="remember" style="margin-bottom: 15px" />
+            Remember me
+        </label> -->
 
-            <label for="phone">Phone Number</label>
-            <input type="tel" placeholder="Enter Phone Number" name="phone" autocomplete="off" maxlength="11" required/>
+        <p>By creating an account you agree to our <a href="#">Terms & Privacy</a>.</p>
 
-            <!--<label>
-                <input type="checkbox" checked="checked" name="remember" style="margin-bottom: 15px" />
-                Remember me
-            </label> -->
+        <div class="s_buttons">
+        <button type="submit" name="cancel" class="cancelbtn">Cancel</button>
+            <button type="submit" name="create" class="signupbtn">Sign Up</button>
+        </div>
 
-            <p>By creating an account you agree to our <a href="#">Terms & Privacy</a>.</p>
-
-            <div class="s_buttons">
-            <button type="submit" name="cancel" class="cancelbtn">Cancel</button>
-                <button type="submit" name="create" class="signupbtn">Sign Up</button>
-            </div>
-
-            <input type="hidden" name="cancelHidden" id="cancelHidden" value="">
-        </form>
+        <input type="hidden" name="cancelHidden" id="cancelHidden" value="">
+    </form>
     </div>
 </div>
 <script>
