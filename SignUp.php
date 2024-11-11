@@ -88,7 +88,7 @@ if (isset($_POST['cancel'])) {
         
     /*========================================================SIGNUP===================================*/
     body {
-        background: radial-gradient(#fff,#F9F9D5);
+        background: radial-gradient(#fff,#FFF9E6);
     }
 
     .containersignup {
