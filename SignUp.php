@@ -73,7 +73,6 @@ if (isset($_POST['cancel'])) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -87,10 +86,8 @@ if (isset($_POST['cancel'])) {
         
     /*========================================================SIGNUP===================================*/
     body {
-        background: radial-gradient(#fff,#FFF9E6);
-        font-family: "Playfair Display", serif;
+        background: radial-gradient(#fff,#F9F9D5);
     }
-
     .containersignup {
         width: 100%;
         padding: 16px;
@@ -103,14 +100,7 @@ if (isset($_POST['cancel'])) {
         margin: 0 auto;
         max-width: 600px;
         border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .s_login-form img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        width: 15%; /* Adjust as needed */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
     h1 {
@@ -153,19 +143,22 @@ if (isset($_POST['cancel'])) {
 
     button.signupbtn,
     button.cancelbtn {
-        background-color: #bc9c22;
         color: white;
         padding: 14px 20px;
         margin: 8px 0;
         border: none;
         cursor: pointer;
-        width: 49%;
+        width: 48%;
         border-radius: 5px;
+    }
+    
+    button.cancelbtn {
+        background-color: #282727;
         border: 1px solid #000000;
     }
 
-    button.cancelbtn {
-        background-color: #282727;
+    button.signupbtn {
+        background-color: #f1c40f;
         border: 1px solid #000000;
     }
 
@@ -249,57 +242,58 @@ if (isset($_POST['cancel'])) {
 <body>
 <div class="containersignup">
     <div class="s_login-form">
-        <img src="Assets/sndlogo-wShadow.png" alt="logo"/>
+        <img src="Assets/sndlogo-wShadow.png" style=" display: block;margin-left: auto;margin-right: auto;width: 15%;" alt="logo"/>
         <h1>SIGN UP</h1>
         <p>Please fill in this form to create an account or <a href="haveacc.php">Login</a></p>
 
-    <form action="" method="post" class="form" id="signupForm">
+        <form action="" method="post" class="form" id="signupForm">
 
-        <label for="email">Email</label>
-        <input type="text" placeholder="Enter Email" name="email" autocomplete="off" required />
 
-        <label for="psw">Password</label>
-        <div class="password-container">
-            <input type="password" placeholder="Enter Password" name="psw" id="password" autocomplete="off" required />
-            <i class="far fa-eye" id="togglePassword1" style="cursor: pointer;"></i>
-        </div>
+            <label for="email">Email</label>
+            <input type="text" placeholder="Enter Email" name="email" autocomplete="off" required />
 
-        <label for="psw-repeat">Repeat Password</label>
-        <div class="password-container">
-            <input type="password" placeholder="Repeat Password" name="psw-repeat" id="passwordRepeat" autocomplete="off" required />
-            <i class="far fa-eye" id="togglePassword2" style="cursor: pointer;"></i>
-        </div>
+            <label for="psw">Password</label>
+            <div class="password-container">
+                <input type="password" placeholder="Enter Password" name="psw" id="password" autocomplete="off" required />
+                <i class="far fa-eye" id="togglePassword1" style="cursor: pointer;"></i>
+            </div>
 
-        <label for="dob">Date of Birth</label>
-        <input type="date" name="dob" required />
+            <label for="psw-repeat">Repeat Password</label>
+            <div class="password-container">
+                <input type="password" placeholder="Repeat Password" name="psw-repeat" id="passwordRepeat" autocomplete="off" required />
+                <i class="far fa-eye" id="togglePassword2" style="cursor: pointer;"></i>
+            </div>
 
-        <label for="gender">Gender</label>
-        <div class="gender-options">
-            <label><input type="radio" name="gender" value="male" required /> Male</label><br/>
-            <label><input type="radio" name="gender" value="female" required /> Female</label><br/>
-            <label><input type="radio" name="gender" value="prefer_not_say" required /> Prefer not to say</label>
-        </div>
+            <label for="dob">Date of Birth</label>
+            <input type="date" name="dob" required />
 
-        <label for="address">Address</label>
-        <input type="text" placeholder="Enter Address" name="address" autocomplete="off" required />
+            <label for="gender">Gender</label>
+            <div class="gender-options">
+                <label><input type="radio" name="gender" value="male" required /> Male</label><br/>
+                <label><input type="radio" name="gender" value="female" required /> Female</label><br/>
+                <label><input type="radio" name="gender" value="prefer_not_say" required /> Prefer not to say</label>
+            </div>
 
-        <label for="phone">Phone Number</label>
-        <input type="tel" placeholder="Enter Phone Number" name="phone" autocomplete="off" maxlength="11" required/>
+            <label for="address">Address</label>
+            <input type="text" placeholder="Enter Address" name="address" autocomplete="off" required />
 
-        <!--<label>
-            <input type="checkbox" checked="checked" name="remember" style="margin-bottom: 15px" />
-            Remember me
-        </label> -->
+            <label for="phone">Phone Number</label>
+            <input type="tel" placeholder="Enter Phone Number" name="phone" autocomplete="off" maxlength="11" required/>
 
-        <p>By creating an account you agree to our <a href="#">Terms & Privacy</a>.</p>
+            <!--<label>
+                <input type="checkbox" checked="checked" name="remember" style="margin-bottom: 15px" />
+                Remember me
+            </label> -->
 
-        <div class="s_buttons">
-        <button type="submit" name="cancel" class="cancelbtn">Cancel</button>
-            <button type="submit" name="create" class="signupbtn">Sign Up</button>
-        </div>
+            <p>By creating an account you agree to our <a href="#">Terms & Privacy</a>.</p>
 
-        <input type="hidden" name="cancelHidden" id="cancelHidden" value="">
-    </form>
+            <div class="s_buttons">
+            <button type="submit" name="cancel" class="cancelbtn">Cancel</button>
+                <button type="submit" name="create" class="signupbtn">Sign Up</button>
+            </div>
+
+            <input type="hidden" name="cancelHidden" id="cancelHidden" value="">
+        </form>
     </div>
 </div>
 <script>
