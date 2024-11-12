@@ -157,7 +157,7 @@
         <div class="reset-form">
         <form action="" method="POST">
             <img src="Assets/sndlogo-wShadow.png" alt="logo"/>
-            <h1>Forgot you password?</h1>
+            <h1>Forgot your password?</h1>
             <p>Please enter you email and we'll send you a link to reset your password.</p>
 
             <div class="input-container">
