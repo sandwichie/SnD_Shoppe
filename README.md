@@ -3,4 +3,4 @@
 ------> [SignUp.php] - removed input for fName and lName\
 ------> [haveacc.php] - removed continue with fb and gmail buttons\
 ------> [SignUp.php] - minor changes w design
-
+11/13 - [forgotPass.php] + [resetPass.php]
