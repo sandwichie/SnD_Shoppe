@@ -214,6 +214,7 @@ h2 {
     margin-top: 5px; 
     font-weight: bold;
     font-size: 16px; 
+    font-family: "Playfair Display SC", serif;
 }
 
 /* Responsive adjustments */
@@ -401,7 +402,7 @@ h2 {
                 if ($count >= 4) break;
             ?>
                 <div class="category col-4 col-md-2 text-center">
-                    <a href="#">
+                    <a href="category.php?category=<?= urlencode($item['category']) ?>">
                         <img src="<?= htmlspecialchars($item['product_image']) ?>" alt="Fabric Image" class="rounded-circle">
                     </a>
                     <p><?= htmlspecialchars($item['category']) ?></p>
