@@ -27,10 +27,13 @@ $user_email = $_SESSION['user_email'];
 
 
 // Get the 4 most recently added products
+$stmtCategory = $pdo->prepare('SELECT product_id, product_image, product_name, category FROM products GROUP BY category');
+$stmtCategory->execute();
+$category = $stmtCategory->fetchAll(PDO::FETCH_ASSOC);
+
 $stmt = $pdo->prepare('SELECT product_id, product_image, product_name, category FROM products');
 $stmt->execute();
 $product = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 
 ?>
 
@@ -394,7 +397,7 @@ h2 {
         <h2 class="text-center mb-4">Category</h2>
             <?php 
             $count = 0;
-            foreach ($product as $item):    
+            foreach ($category as $item):    
                 if ($count >= 4) break;
             ?>
                 <div class="category col-4 col-md-2 text-center">
