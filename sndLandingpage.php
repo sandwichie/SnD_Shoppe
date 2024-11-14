@@ -294,10 +294,14 @@ if (isset($_GET['category'])) {
             margin-top: 10px;
             font-family: "Playfair Display SC", serif;
             padding-bottom: 5px;
+            text-align: center;
         }
         .row p:hover{
             text-decoration: underline #bc9c22;
             color: #bc9c22;
+        }
+        .row a{
+            text-decoration: none;
         }
         .btn1{
             display: inline-block;
@@ -570,10 +574,9 @@ if (isset($_GET['category'])) {
         </div>
 
         <div class="available-row" style="margin-bottom: 20px; margin-top: 20px;">
-            <a href="url">All Fabrics</a>
+            <a href="homepage.php">All Fabrics</a>
             <a href="url">New Arrivals</a>
             <a href="url">Popular</a>
-            <a href="homepage.php">Order Here</a>
         </div>
 
         <div class="row">
@@ -586,8 +589,8 @@ if (isset($_GET['category'])) {
                 <div class="categories-col">
                     <a href="category.php?category=<?= urlencode($item['category']) ?>">
                         <img src="<?= htmlspecialchars($item['product_image']) ?>" alt="Fabric Image" >
+                        <p><?= htmlspecialchars($item['category']) ?></p>
                     </a>
-                    <p><?= htmlspecialchars($item['category']) ?></p>
                 </div>
             <?php 
                 $count++;
