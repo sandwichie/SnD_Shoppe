@@ -1,6 +1,7 @@
 <?php
 session_start();
 
+
 $servername = "localhost";
 $dbname = "db_sdshoppe";
 $username = "root";  
@@ -26,9 +27,10 @@ $user_email = $_SESSION['user_email'];
 
 
 // Get the 4 most recently added products
-$stmt = $pdo->prepare('SELECT product_image FROM products');
+$stmt = $pdo->prepare('SELECT product_id, product_image, product_name, category FROM products');
 $stmt->execute();
 $product = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 
 ?>
 
@@ -47,7 +49,7 @@ $product = $stmt->fetchAll(PDO::FETCH_ASSOC);
         @import url('https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@100..900&family=Playfair+Display+SC:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
 
 body {
-    background-image: url(Assets/bgLogin.png);
+    background-color: #f1e8d9;
     background-blend-mode: multiply;
     background-position: center;
     background-size: cover;
@@ -148,29 +150,27 @@ h1{
     margin: 0;
 }
 
-
-
 /* Card background for the category section */
 .category-card {
-    max-height: 70vh; 
-    overflow-y: auto; 
+    max-height: 80vh; 
     background-color: #b6b3ae; 
     border-radius: 15px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); 
-    margin: 20px 0;
+    margin: 10px 0;
+    padding: 20px;
 }
 
-/* Ensure h2 is styled correctly */
+/* Styling for the Category heading */
 h2 {
     font-family: "Playfair Display SC", serif;
     font-weight: 600;
     font-size: 32px;
-    margin: 70px 0;
+    margin: 20px 0;
 }
 
 /* Category section styling */
 .category-card {
-    max-height: 70vh; 
+    max-height: 80vh; 
     overflow-y: auto; 
     background-color: #b6b3ae;
     padding: 20px;
@@ -179,24 +179,24 @@ h2 {
     margin: 20px 0;
 }
 
-/* Ensure categories are displayed in a single row */
+/* Row to display categories in a single line */
 .row {
     display: flex;
-    justify-content: center; 
+    justify-content: space-around; 
     flex-wrap: wrap; 
-    gap: 10px; 
+    gap: 15px; 
+    padding: 0;
     margin: 0; 
 }
 
-/* Style for individual categories */
+/* Individual category styling */
 .category {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0; 
-    flex: 1 1 120px; 
+    text-align: center;
+    flex: 1 1 120px; /* Allow the items to take up space evenly */
     max-width: 120px; 
-    text-align: center; 
 }
 
 .category img {
@@ -208,7 +208,7 @@ h2 {
 }
 
 .category p {
-    margin-top: 3px; 
+    margin-top: 5px; 
     font-weight: bold;
     font-size: 16px; 
 }
@@ -241,8 +241,8 @@ h2 {
 
 .filter-buttons button {
     padding: 8px 12px; 
-    border: none;
-    background-color: #f1e8d9; 
+    border: 2px solid #1e1e1e;
+    background-color: #FFFFFF; 
     cursor: pointer;
     border-radius: 50px; 
     font-weight: bold;
@@ -305,6 +305,7 @@ h2 {
     flex-direction: column; 
     align-items: center; 
 }
+
 
 .fabric-card img {
     width: 100%; 
@@ -378,7 +379,7 @@ h2 {
                                 <hr class="dropdown-divider">
                             </li>
                             <li>
-                                <a class="dropdown-item text-danger" href="haveacc.php">Logout</a>
+                                <a class="dropdown-item text-danger" href="logout.php">Logout</a>
                             </li>
                         </ul>
                     </li>
@@ -389,46 +390,26 @@ h2 {
 
     <!-- Category Card -->
     <div class="category-card p-4">
-        <h2 class="text-center mb-4">Category</h2> <!-- Ensure the header is directly in the card -->
-        <div class="row justify-content-center">
-            <div class="category col-4 col-md-2 text-center">
-                <a href="https://www.facebook.com/surrealsoreaaal">
-                    <img src="Assets/fabrics/Laces.jpg" alt="Lace" class="rounded-circle">
-                </a>
-                <p>LACES</p>
-            </div>
-            <div class="category col-4 col-md-2 text-center">
-                <a href="#">
-                    <img src="Assets/fabrics/beaded lace.jpg" alt="Beaded Lace" class="rounded-circle">
-                </a>
-                <p>BEADED LACE</p>
-            </div>
-            <div class="category col-4 col-md-2 text-center">
-                <a href="#">
-                    <img src="Assets/fabrics/sequins.jpg" alt="Sequins" class="rounded-circle">
-                </a>
-                <p>SEQUINS</p>
-            </div>
-            <div class="category col-4 col-md-2 text-center">
-                <a href="#">
-                    <img src="Assets/fabrics/silk.jpg" alt="Silk" class="rounded-circle">
-                </a>
-                <p>SILK</p>
-            </div>
-            <div class="category col-4 col-md-2 text-center">
-                <a href="#">
-                    <img src="Assets/fabrics/velvet.jpg" alt="Velvet" class="rounded-circle">
-                </a>
-                <p>VELVET</p>
-            </div>
-            <div class="category col-4 col-md-2 text-center">
-                <a href="#">
-                    <img src="Assets/fabrics/satin.png" alt="Satin" class="rounded-circle">
-                </a>
-                <p>SATIN</p>
-            </div>
+        <div class="row justify-content-center" style="margin-top: 75px;">
+        <h2 class="text-center mb-4">Category</h2>
+            <?php 
+            $count = 0;
+            foreach ($product as $item):    
+                if ($count >= 4) break;
+            ?>
+                <div class="category col-4 col-md-2 text-center">
+                    <a href="#">
+                        <img src="<?= htmlspecialchars($item['product_image']) ?>" alt="Fabric Image" class="rounded-circle">
+                    </a>
+                    <p><?= htmlspecialchars($item['category']) ?></p>
+                </div>
+            <?php 
+                $count++;
+            endforeach; 
+            ?>
         </div>
     </div>
+                
     
     <!-- Filter Buttons -->
     <div class="filter-buttons">
@@ -441,40 +422,16 @@ h2 {
 
     <!-- Fabric Items -->
     <div class="fabric-items">
-        <div class="fabric-card">
-            <div class="fabric-content">
-                <a href="product.html">
-                    <img src="<?= htmlspecialchars($product['product_image']) ?>" alt="Fabric 1"></a>
-                <p>Enchanted Lace</p>
-            </div>
-        </div>  
-
+        <?php foreach ($product as $item): ?>
             <div class="fabric-card">
                 <div class="fabric-content">
-                    <a href="#"><img src="Assets/fabrics/gingham-orange.jpg" alt="Fabric 2"></a>
-                    <p>Gingham Orange</p>
+                    <a href="product.php?product_id=<?= htmlspecialchars($item['product_id']) ?>">
+                        <img src="<?= htmlspecialchars($item['product_image']) ?>" alt="Fabric Image" style="width: 200px; height: 200px; object-fit: cover; border-radius: 10px;">
+                    </a>
+                    <p><?= htmlspecialchars($item['product_name']) ?></p>
                 </div>
             </div>
-
-        <div class="fabric-card">
-            <div class="fabric-content">
-                <a href="#"><img src="Assets/fabrics/gingham-purple.jpg" alt="Fabric 3"></a>
-                <p>Gingham Purple</p>
-            </div>
-        </div>
-        <div class="fabric-card">
-            <div class="fabric-content">
-                <a href="#"><img src="Assets/fabrics/gingham-pink.jpg" alt="Fabric 4"></a>
-                <p>Gingham Pink</p>
-            </div>
-        </div>
-        <div class="fabric-card">
-            <div class="fabric-content">
-                <a href="#"><img src="Assets/fabrics/gingham-yellow.jpg" alt="Fabric 5"></a>
-                <p>Gingham Yellow</p>
-            </div>
-        </div>
-        <!-- Add more fabric cards as needed -->
+        <?php endforeach; ?>
     </div>
 </body>
 </html>
