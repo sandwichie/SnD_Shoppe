@@ -275,10 +275,15 @@ if (isset($_GET['category'])) {
             align-items: center;
             justify-content: center;
             border-radius: 5px;
-            border: 1px solid #7c7c7c;
+            border: 1px solid #d9b65d;
             box-shadow: 0.5px 0.5px 5px #7c7c7c;
             height: auto;
             padding: 10px;
+            transition: transform 400ms;
+            background-color: #FFF9E6;
+        }
+        .categories-col:hover {
+            transform: scale(1.2);
         }
         .categories-col img{
             width: 100%;
