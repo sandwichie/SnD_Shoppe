@@ -1,5 +1,5 @@
 <?php
-//database
+// Start session and initialize database connection
 session_start();
 $servername = "localhost";
 $dbname = "db_sdshoppe";
@@ -19,21 +19,20 @@ if(isset($_POST['continue'])) {
         $firstname = $_POST['firstname'];
         $lastname = $_POST['lastname'];
 
-        $stmt = $conn->prepare("INSERT INTO users_credentials (FIRSTNAME, LASTNAME) VALUES (?, ?)");
-        $stmt->bind_param("ss", $firstname, $lastname);  // "ss" means two string parameters
-        
+        // Use PDO to prepare and execute the statement
+        $stmt = $pdo->prepare("INSERT INTO users_credentials (FIRSTNAME, LASTNAME) VALUES (:firstname, :lastname)");
+        $stmt->bindParam(':firstname', $firstname);
+        $stmt->bindParam(':lastname', $lastname);
+
         if ($stmt->execute()) {
-            $user_id = $conn->insert_id;  
+            $user_id = $pdo->lastInsertId();  
             $_SESSION['user_id'] = $user_id;  
 
             header("Location: SignUp.php");
             exit();
-            //echo "<script>window.location.href = 'SignUp.php?';</script>";
         } else {
-            echo "Error: " . $stmt->error;
+            echo "Error: " . $stmt->errorInfo()[2];
         }
-
-        $stmt->close();
     }  
 }
 
@@ -275,10 +274,10 @@ if (isset($_GET['category'])) {
             align-items: center;
             justify-content: center;
             border-radius: 5px;
-            border: 1px solid #d9b65d;
+            border: 1px solid #7c7c7c;
             box-shadow: 0.5px 0.5px 5px #7c7c7c;
             height: auto;
-            padding: 10px;
+            padding: 15px;
             transition: transform 400ms;
             background-color: #FFF9E6;
         }
@@ -288,6 +287,7 @@ if (isset($_GET['category'])) {
         .categories-col img{
             width: 100%;
             height: 100%;
+            border-radius: 5px;
         }
         .row p{
             padding: 10px;
@@ -416,7 +416,7 @@ if (isset($_GET['category'])) {
             padding: 60px;
             padding-top: 130px;
             padding-bottom: 120px;
-            background-image: url(/SND/Assets/bgLogin.png);
+            background-image: url(PIC/bgLogin.png);
             height: auto; 
             box-shadow: inset 0px 0px 10px #000000;
             align-items: start;
@@ -506,17 +506,18 @@ if (isset($_GET['category'])) {
                 <span class="navbar-toggler-icon"></span>
             </button>
 
+            <!-- idk the function so remove ko muna for the meantime
             <div class="collapse navbar-collapse" id="navbarTogglerDemo01">
                 <div class="mx-auto d-flex justify-content-center flex-grow-1">
-                    <form class="search-bar" role="search">
+                    <form class="search-bar" name="search" role="search" method="POST" action="">
                         <div class="input-group">
-                            <span class="input-group-text" id="basic-addon1">
+                            <span class="input-group-text" name="search" id="basic-addon1">
                                 <i class="bi bi-search search-icon"></i>
                             </span>
                             <input class="form-control" type="search" placeholder="Search..." aria-label="Search" aria-describedby="basic-addon1">
                         </div>
                     </form>
-                </div>
+                </div> -->
 
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item">
@@ -542,14 +543,15 @@ if (isset($_GET['category'])) {
                             <img src="Assets/svg(icons)/account_circle.svg" alt="account">
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
-                            <li>
+                            <!--inalis ko yung settings-->
+                            <!--<li>
                                 <a class="dropdown-item" href="settings.html">Settings</a>
                             </li>
                             <li>
                                 <hr class="dropdown-divider">
-                            </li>
+                            </li> -->
                             <li>
-                                <a class="dropdown-item text-danger" href="login.html">Login</a>
+                                <a class="dropdown-item text-danger" href="haveacc.php">Login</a>
                             </li>
                         </ul>
                     </li>
@@ -592,7 +594,7 @@ if (isset($_GET['category'])) {
                 if ($count >= 4) break;
             ?>
                 <div class="categories-col">
-                    <a href="category.php?category=<?= urlencode($item['category']) ?>">
+                    <a href="haveacc.php?category=<?= urlencode($item['category']) ?>">
                         <img src="<?= htmlspecialchars($item['product_image']) ?>" alt="Fabric Image" >
                         <p><?= htmlspecialchars($item['category']) ?></p>
                     </a>
