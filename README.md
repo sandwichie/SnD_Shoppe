@@ -5,3 +5,4 @@
 ------> [SignUp.php] - minor changes w design\
 11/13 > [forgotPass.php] + [resetPass.php]\
 ------> [products.php] - product image and quantity counter
+11/20 > [product.php] - updated product ratings (no filtering)
