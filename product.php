@@ -19,6 +19,12 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Validate product_id
+$product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
+if ($product_id <= 0) {
+    die("Invalid Product ID.");
+}
+
 // Access user information from the session
 $user_id = $_SESSION['user_id'];
 $user_email = $_SESSION['user_email'];
@@ -65,37 +71,74 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['cart'])) {
     
 }
 
-
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnreview'])) {
-    $title = htmlspecialchars($_POST['title']);
-    $description = htmlspecialchars($_POST['description']);
-    $rating = intval($_POST['rating']);
-    $product_id = $_GET['product_id'];
+    // Handle review submission
+    $title = $_POST['title'];
+    $description = $_POST['description'];
+    $rating = $_POST['rating'];
 
-    if (empty($title) || empty($rating)) {
-        $_SESSION['error'] = "Title and rating are required.";
-        header("Location: product.php?product_id=$product_id");
-        exit();
-    }
+    // Get the firstname of the current logged-in user
+    $stmtUser = $pdo->prepare('SELECT firstname, lastname FROM users_credentials WHERE id = :user_id');
+    $stmtUser->execute(['user_id' => $user_id]);
+    $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+    $firstname = $user['firstname'];
+    $lastname = $user['lastname'];
 
-    try {
-        $stmt1 = $pdo->prepare("INSERT INTO product_ratings (product_id, rating, title, description, date)
-                               VALUES (:product_id, :rating, :title, :description, CURDATE())");
-        $stmt1->execute([
-            ':product_id' => $product_id,
-            ':rating' => $rating,
-            ':title' => $title,
-            ':description' => $description,
-        ]);
-        $_SESSION['success'] = "Review submitted successfully!";
-    } catch (PDOException $e) {
-        $_SESSION['error'] = "Failed to submit review: " . $e->getMessage();
-    }
+    // Insert the review along with the user's firstname
+    $stmt = $pdo->prepare("INSERT INTO product_ratings (product_id, user_id, user_firstname, user_lastname, title, description, rating, time) 
+                           VALUES (:product_id, :user_id, :firstname, :lastname, :title, :description, :rating, NOW())");
+    $stmt->execute([
+        'product_id' => $product_id,
+        'user_id' => $user_id,
+        'firstname' => $firstname,
+        'lastname' => $lastname,
+        'title' => $title,
+        'description' => $description,
+        'rating' => $rating
+    ]);
 
-    header("Location: product.php?product_id=$product_id");
-    exit();
+    // Redirect to prevent resubmitting the review on refresh
+    header("Location: product.php?product_id=" . $product_id);
+    exit;
 }
 
+// Fetch all reviews
+$reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// count all reviews
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM product_ratings WHERE product_id = :product_id");
+$stmt->execute(['product_id' => $product_id]);
+$totalReviews = $stmt->fetchColumn();
+
+// avg of all reviews
+$stmt = $pdo->prepare("SELECT avg(rating) FROM product_ratings WHERE product_id = :product_id");
+$stmt->execute(['product_id' => $product_id]);
+$Ave = round($stmt->fetchColumn());
+
+$reviews_per_page = 5;
+
+// Get the current page from the URL, default to page 1 if not set
+$current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
+// Calculate the starting review index
+$start_index = ($current_page - 1) * $reviews_per_page;
+
+// Fetch the total number of reviews
+$stmtTotal = $pdo->prepare("SELECT COUNT(*) FROM product_ratings WHERE product_id = :product_id");
+$stmtTotal->execute(['product_id' => $product_id]);
+$total_reviews = $stmtTotal->fetchColumn();
+
+// Fetch reviews for the current page
+$stmt = $pdo->prepare("SELECT user_firstname, user_lastname, title, description, rating, time FROM product_ratings WHERE product_id = :product_id ORDER BY time DESC LIMIT :start, :limit");
+$stmt->bindValue(':product_id', $product_id, PDO::PARAM_INT);
+$stmt->bindValue(':start', $start_index, PDO::PARAM_INT);
+$stmt->bindValue(':limit', $reviews_per_page, PDO::PARAM_INT);
+$stmt->execute();
+$reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Calculate total pages
+$total_pages = ceil($total_reviews / $reviews_per_page);
 ?>
 
 <!DOCTYPE html>
@@ -117,7 +160,7 @@ body {
     background-blend-mode: multiply;
     background-position: center;
     background-size: cover;
-    background-repeat: no-repeat;
+    background-repeat: repeat;
     min-height: 100vh; 
     overflow-y: auto; 
     margin: 0; 
@@ -475,18 +518,19 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .total-reviews {
-    width: 20%;
+    width: 22%;
     padding: 10px;
     height: auto;
     justify-content: center; /* Aligns horizontally */
     align-items: center; /* Aligns vertically */
     font-size: 15px;
-    
+    font-family: "Playfair Display SC", serif;
 }
 
 .total-reviews h3 {
-    font-size: 25px;
     margin-top: 15px;
+    text-align: center;
+    font-weight: bold;
 }
 
 .star-container {
@@ -526,6 +570,8 @@ input[type=number]::-webkit-outer-spin-button {
     font-size: 20px;
     font-weight: bold;
     width: 87%;
+    margin-top: 10px;
+    margin-left: 5px;
 }
 
 /* Button used to open the contact form - fixed at the bottom of the page */
@@ -654,9 +700,76 @@ input[type=number]::-webkit-outer-spin-button {
   outline: none;
 }
 
+.all-reviews {
+    margin-top: 20px;
+    font-family: "Playfair Display", serif;
+}
 
+.review-con {
+    display: flex;
+    flex-direction: column;  /* Align children vertically */
+    justify-content: center; /* Align items on the Y-axis (vertical center) */
+    border-bottom: 1px solid #000000;
+    margin-top: 8px;
+    height: auto;
+    padding: 20px;
+}   
 
+.review {
+    flex-direction: column;  /* Align children vertically */
+    justify-content: center;
+    height: fit-content;
+}
 
+.review h3 {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.date {
+    font-size: 15px;
+    color: #B5A888;
+}
+
+.rating-stars {
+    padding: auto;
+    padding-bottom: 10px;
+    color: #dcaa2e;
+    font-size: 17px;
+}
+
+.review h4 {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.review p {
+    font-size: 15px;
+    margin-bottom: -1px;
+    margin-top: -2px;
+    max-height: 100px; /* Limit the height of the paragraph */
+    overflow-y: auto;  /* Enable vertical scrolling for overflowing content */
+    padding: 5px;      /* Add padding for better readability */
+    word-wrap: break-word; /* Ensure long words break properly */
+    line-height: 1.5;  /* Adjust line height for readability */
+}
+
+.pagination {
+        display: flex;
+        justify-content: right;
+        gap: 20px; /* Adds space between buttons */
+        margin: 10px 0; /* Adds space above and below pagination */
+}
+
+.pagination a {
+    text-decoration: none;
+    padding: 5px;
+    color: #dcaa2e;
+}
+
+.pagination a:hover {
+    text-decoration: underline #dcaa2e;
+}
 
 /* Media Queries */
 @media (max-width: 768px) {
@@ -834,8 +947,8 @@ input[type=number]::-webkit-outer-spin-button {
                     
                     <div class="review-filter">
                         <div class="total-reviews">
-                            <h3><i class="fas fa-star"></i></h3>
-                            <p>total 0 reviews</p>
+                            <h3 style="font-size: 35px;"><?= htmlspecialchars($Ave) ?><i class="fas fa-star" style="font-size: 20px;"></i></h3>
+                            <p>Based on <?= htmlspecialchars($totalReviews) ?> reviews</p>
                         </div>
                         <div class="star-container"> 
                             <p class="stars">
@@ -915,6 +1028,44 @@ input[type=number]::-webkit-outer-spin-button {
                                 </form>
                             </div>
                         </div>
+
+                        <div class="all-reviews">
+                            <?php foreach ($reviews as $review): ?>
+                            <div class="review-con">
+                                <div class="review">
+                                <h3><?= htmlspecialchars($review['user_firstname']) ?> 
+                                    <span><?= htmlspecialchars($review['user_lastname']) ?></span> | 
+                                    <span class="date"><?= htmlspecialchars($review['time']) ?></span>
+                                </h3>                                    
+                                    <div class="rating-stars">
+                                        <?php
+                                        $rating = (int)$review['rating']; // Ensure the rating is an integer
+                                        for ($i = 1; $i <= 5; $i++) {
+                                            if ($i <= $rating) {
+                                                echo '<i class="fas fa-star"></i>'; // Filled star
+                                            } else {
+                                                echo '<i class="far fa-star"></i>'; // Empty star
+                                            }
+                                        }
+                                        ?>
+                                    </div>
+                                    <h4><?= htmlspecialchars($review['title']) ?></h4>
+                                    <p><?= htmlspecialchars($review['description']) ?></p>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Pagination Controls -->
+                        <div class="pagination">
+    <?php if ($current_page > 1): ?>
+        <a href="?product_id=<?= $product_id ?>&page=<?= $current_page - 1 ?>" class="prev-btn">Previous</a>
+    <?php endif; ?>
+
+    <?php if ($current_page < $total_pages): ?>
+        <a href="?product_id=<?= $product_id ?>&page=<?= $current_page + 1 ?>" class="next-btn">Next</a>
+    <?php endif; ?>
+</div>
                     </div>
                 </div>
             </div>
