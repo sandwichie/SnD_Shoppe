@@ -98,8 +98,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnreview'])) {
         'rating' => $rating
     ]);
 
-    // Redirect to prevent resubmitting the review on refresh
-    header("Location: product.php?product_id=" . $product_id);
+    
+    echo '<script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            // Create the overlay
+            const overlay = document.createElement("div");
+            overlay.style.position = "fixed";
+            overlay.style.top = "0";
+            overlay.style.left = "0";
+            overlay.style.width = "100%";
+            overlay.style.height = "100%";
+            overlay.style.background = "linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url(\'Assets/bgLogin.png\')";
+            overlay.style.zIndex = "999"; // Behind the popup but above the content
+
+            // Create the popup
+            const popup = document.createElement("div");
+            popup.style.position = "fixed";
+            popup.style.top = "50%";
+            popup.style.left = "50%";
+            popup.style.transform = "translate(-50%, -50%)";
+            popup.style.padding = "20px";
+            popup.style.backgroundColor = "#dcaa2e";
+            popup.style.color = "white";
+            popup.style.borderRadius = "5px";
+            popup.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+            popup.style.zIndex = "1000";
+            popup.innerText = "Thank you for taking the time to leave a review! Your insights mean a lot to us, it helps us identify areas for improvement and deliver a better experience for you and all our customers.";
+
+            // Append overlay and popup to the document
+            document.body.appendChild(overlay);
+            document.body.appendChild(popup);
+
+            // Automatically redirect after 2 seconds
+            setTimeout(() => {
+                window.location.href = "product.php?product_id=' . $product_id . '";
+            }, 1000);
+        });
+      </script>';
     exit;
 }
 
@@ -413,7 +448,6 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 20px;
     border: 1px solid #1e1e1e;
     background-color: #d9b65d;
     padding: 10px 20px;
@@ -586,52 +620,84 @@ input[type=number]::-webkit-outer-spin-button {
     text-align: center;
 }
 
+.open-button:hover {
+    background-color: #B5A888;
+
+}
+
 /* The popup form - hidden by default */
 .form-popup {
-  display: none;
-  position: fixed;
-  top: 55%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border: 3px solid #f1f1f1;
-  z-index: 1000; /* Higher z-index than the overlay */
-  background-color: white;
-  padding: 10px;
-  border-radius: 8px;
-  max-width: 700px;
-  width: 100%;
-  opacity: 0;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  height: 520px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); 
+    display: none; /* Will be overridden when visible */
+    position: fixed;
+    top: 55%;
+    left: 50%;
+    transform: translate(-50%, 10%); /* Start from below */
+    border: 1px solid #dcaa2e;
+    z-index: 1000; /* Higher z-index than the overlay */
+    background-color: white;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 700px;
+    width: 100%;
+    opacity: 0;
+    height: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); 
     row-gap: 5px;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.form-popup.show {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%); /* Move to its final position */
 }
 
 .form-popup h1 {
-    font-size: 30px;
+    font-size: 28px;
     font-weight: bold;
     color: #dcaa2e;
     justify-self: center;
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-.form-popup button {
-    background-color: #dcc07a;
+.buttons button {
     font-family: "Playfair Display", serif;
     border: 1px solid #000000;
     text-decoration: none;
     padding: 3px;
     color: #1e1e1e;
     text-align: center;
+    margin-top: 30px;
+}
+
+.buttons {
+    float: right; /* Floats the button to the right */
+    display: flex;
+    gap: 10px;
+}
+
+.btnReview {
+    background-color: #dcc07a;
+}
+
+.btnReview:hover {
+    background-color: #E2D1A7;
+}
+
+.btnCancel {
+    background-color: #B5A888;
+}
+.btnCancel:hover {
+    background-color: #BFBAAC;
 }
 
 .review-label {
-    display: block; /* Ensures the label takes up the full width */
-    text-align: center; /* Centers the text horizontally */
-    font-size: 16px; /* Adjust font size as needed */
-    margin-bottom: 10px; /* Add spacing below the label */
-    font-weight: bold; /* Optional: make it bold */
-    color: #333; /* Optional: customize the text color */
+    display: block; 
+    text-align: center; 
+    font-size: 16px; 
+    margin-bottom: 10px; 
+    font-weight: bold; 
+    color: #333; 
 }
 
 .product-rev {
@@ -641,51 +707,60 @@ input[type=number]::-webkit-outer-spin-button {
 
 /* Overlay to dim the background */
 .overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 999; /* Lower than the popup */
-  opacity: 0;
-  transition: opacity 0.3s ease;
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999; /* Lower than the popup */
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 /* Show popup and overlay */
 .form-popup.show {
-  display: block;
-  opacity: 1;
+    display: block;
+    opacity: 1;
 }
 
 .overlay.show {
-  display: block;
-  opacity: 1;
+    display: block;
+    opacity: 1;
 }
 
 /* Add styles to the form container */
 .form-container {
-  max-height: 100%;
-  overflow-y: auto; /* Enable vertical scrolling */
-  padding: 10px;
-  background-color: white;
-  box-sizing: border-box; /* Include padding in width/height */
+    max-height: 100%;
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 10px;
+    background-color: white;
+    box-sizing: border-box; /* Include padding in width/height */
 }
 
 /* Full-width input fields */
-.form-container input[type=text], 
+.form-container input[type=text] {
+    height: 40px;
+    width: 100%;
+    padding: 15px;
+    margin: 3% 0 22px 0;
+    border: none;
+    background: #f1f1f1;
+    box-sizing: border-box; /* Include padding in width/height */
+    resize: none; /* Disable resizing for textareas */
+    } 
+
 .form-container .box {
-  width: 100%;
-  padding: 15px;
-  margin: 3% 0 22px 0;
-  border: none;
-  background: #f1f1f1;
-  box-sizing: border-box; /* Include padding in width/height */
-  resize: none; /* Disable resizing for textareas */
+    width: 100%;
+    padding: 15px;
+    margin: 3% 0 22px 0;
+    background: #f1f1f1;
+    box-sizing: border-box; /* Include padding in width/height */
+    resize: none; /* Disable resizing for textareas */
 }
 
-.box {
+.rating-box {
     width: 100%;
     padding: 15px;
     border: none;
@@ -695,7 +770,7 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 /* When the inputs get focus, do something */
-.form-container input[type=text]:focus, .box:focus {
+.form-container input[type=text]:focus, .rating-box:focus {
   background-color: #ddd;
   outline: none;
 }
@@ -769,6 +844,45 @@ input[type=number]::-webkit-outer-spin-button {
 
 .pagination a:hover {
     text-decoration: underline #dcaa2e;
+}
+
+.popup-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+.popup {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    text-align: center;
+}
+
+.popup button {
+    margin-top: 10px;
+    padding: 5px 15px;
+    background-color: #dcaa2e;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.popup button:hover {
+    background-color: #E2D1A7;
 }
 
 /* Media Queries */
@@ -1010,10 +1124,10 @@ input[type=number]::-webkit-outer-spin-button {
                                     <input type="text" placeholder="Enter Title" name="title" required />
 
                                     <label for="descript">Review Description</label>
-                                    <textarea name="description" class="box" placeholder="Enter Review Description" maxlength="1000" cols="5" rows="3"></textarea>
+                                    <textarea name="description" class="rating-box" placeholder="Enter Review Description" maxlength="1000" cols="5" rows="3"></textarea>
 
                                     <label class="descript">Review Rating <span>*</span></label>
-                                    <select name="rating" class="box" required>
+                                    <select name="rating" class="rating-box" required>
                                         <option value="1">1</option>
                                         <option value="2">2</option>
                                         <option value="3">3</option>
@@ -1022,7 +1136,7 @@ input[type=number]::-webkit-outer-spin-button {
                                     </select>
 
                                     <div class="buttons">
-                                        <button type="button" class="cancelbtn" onclick="closeForm()">Cancel</button>
+                                        <button type="button" class="btnCancel" onclick="closeForm()">Cancel</button>
                                         <button type="submit" name="btnreview" class="btnReview">Submit Review</button>
                                     </div>
                                 </form>
@@ -1058,14 +1172,15 @@ input[type=number]::-webkit-outer-spin-button {
 
                         <!-- Pagination Controls -->
                         <div class="pagination">
-    <?php if ($current_page > 1): ?>
-        <a href="?product_id=<?= $product_id ?>&page=<?= $current_page - 1 ?>" class="prev-btn">Previous</a>
-    <?php endif; ?>
+                            <?php if ($current_page > 1): ?>
+                                <a href="?product_id=<?= $product_id ?>&page=<?= $current_page - 1 ?>" class="prev-btn">Previous</a>
+                            <?php endif; ?>
 
-    <?php if ($current_page < $total_pages): ?>
-        <a href="?product_id=<?= $product_id ?>&page=<?= $current_page + 1 ?>" class="next-btn">Next</a>
-    <?php endif; ?>
-</div>
+                            <?php if ($current_page < $total_pages): ?>
+                                <a href="?product_id=<?= $product_id ?>&page=<?= $current_page + 1 ?>" class="next-btn">Next</a>
+                            <?php endif; ?>
+                        </div>
+                        
                     </div>
                 </div>
             </div>
@@ -1158,13 +1273,21 @@ if (input !== undefined && btnminus !== undefined && btnplus !== undefined && in
 } // End if test
 
 function openForm() {
-  document.getElementById("myForm").classList.add("show");
-  document.getElementById("overlay").classList.add("show");
+    const form = document.getElementById("myForm");
+    form.style.display = "block"; // Make it visible immediately
+    setTimeout(() => {
+        form.classList.add("show");
+    }, 10); // Allow the browser to register the change for transition
+    document.getElementById("overlay").classList.add("show");
 }
 
 function closeForm() {
-  document.getElementById("myForm").classList.remove("show");
-  document.getElementById("overlay").classList.remove("show");
+    const form = document.getElementById("myForm");
+    form.classList.remove("show");
+    setTimeout(() => {
+        form.style.display = "none"; // Hide after transition ends
+    }, 300); // Match the transition duration
+    document.getElementById("overlay").classList.remove("show");
 }
 
     </script>
