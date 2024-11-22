@@ -134,12 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnreview'])) {
                 window.location.href = "product.php?product_id=' . $product_id . '";
             }, 1000);
         });
-      </script>';
+        </script>';
     exit;
 }
-
-// Fetch all reviews
-$reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // count all reviews
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM product_ratings WHERE product_id = :product_id");
@@ -151,29 +148,34 @@ $stmt = $pdo->prepare("SELECT avg(rating) FROM product_ratings WHERE product_id 
 $stmt->execute(['product_id' => $product_id]);
 $Ave = round($stmt->fetchColumn());
 
-$reviews_per_page = 5;
+// Fetch the selected rating from the URL (default to show all ratings if none is selected)
+$ratingFilter = isset($_GET['rating']) ? (int)$_GET['rating'] : 0;
 
-// Get the current page from the URL, default to page 1 if not set
-$current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+// Base query
+$sql = "SELECT * FROM product_ratings WHERE product_id = ?";
 
-// Calculate the starting review index
-$start_index = ($current_page - 1) * $reviews_per_page;
+// Add rating filter to the query if a specific rating is selected
+if ($ratingFilter > 0) {
+    $sql .= " AND rating = ?";
+}
 
-// Fetch the total number of reviews
-$stmtTotal = $pdo->prepare("SELECT COUNT(*) FROM product_ratings WHERE product_id = :product_id");
-$stmtTotal->execute(['product_id' => $product_id]);
-$total_reviews = $stmtTotal->fetchColumn();
+// Add ORDER BY clause to sort by time in descending order
+$sql .= " ORDER BY time DESC";
 
-// Fetch reviews for the current page
-$stmt = $pdo->prepare("SELECT user_firstname, user_lastname, title, description, rating, time FROM product_ratings WHERE product_id = :product_id ORDER BY time DESC LIMIT :start, :limit");
-$stmt->bindValue(':product_id', $product_id, PDO::PARAM_INT);
-$stmt->bindValue(':start', $start_index, PDO::PARAM_INT);
-$stmt->bindValue(':limit', $reviews_per_page, PDO::PARAM_INT);
-$stmt->execute();
+// Prepare the query
+$stmt = $pdo->prepare($sql);
+
+// Bind parameters and execute
+if ($ratingFilter > 0) {
+    $stmt->execute([$product_id, $ratingFilter]);
+} else {
+    $stmt->execute([$product_id]);
+}
+
+// Fetch all reviews
 $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Calculate total pages
-$total_pages = ceil($total_reviews / $reviews_per_page);
+
 ?>
 
 <!DOCTYPE html>
@@ -339,9 +341,8 @@ button {
 .product-image img {
     max-width: 100%;
     height: auto;
-    border-radius: 2px;
+    border-radius: 5px;
     position: relative;
-
 }
 
 /* Prev and Next Buttons Positioned Center on Image Sides */
@@ -369,7 +370,7 @@ button {
     transition: background-color 0.3s, transform 0.2s;
     position: absolute; 
     top: 50%; 
-    transform: translateY(-570%); 
+    transform: translateY(-630%); 
 }
 
 /* Specific styling for prev and next buttons */
@@ -552,19 +553,19 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .total-reviews {
-    width: 22%;
+    width: 20%;
     padding: 10px;
     height: auto;
     justify-content: center; /* Aligns horizontally */
     align-items: center; /* Aligns vertically */
-    font-size: 15px;
+    font-size: 13.5px;
     font-family: "Playfair Display SC", serif;
 }
 
 .total-reviews h3 {
-    margin-top: 15px;
     text-align: center;
     font-weight: bold;
+    margin-top: 10px;
 }
 
 .star-container {
@@ -579,15 +580,24 @@ input[type=number]::-webkit-outer-spin-button {
 .stars {
     border: 1px solid #000000;
     background-color: #B5A888;
-    max-width: 500px;
-    margin-top: 20px;
+    max-width: auto;
+    margin-top: 23px;
 }
 
-.stars i, .stars a{
-    font-size: 12px;
-    padding: 2px;
+.stars a {
+    font-size: 14.5px;
+    padding: -1px;
     color: #1e1e1e;
     text-decoration: none;
+    gap: -3px;
+}
+
+.stars i{
+    font-size: 10px;
+    padding: -1px;
+    color: #1e1e1e;
+    text-decoration: none;
+    gap: -3px;
 }
 
 .stars a:hover {
@@ -885,6 +895,11 @@ input[type=number]::-webkit-outer-spin-button {
     background-color: #E2D1A7;
 }
 
+.active-filter {
+    font-weight:bolder;
+    text-decoration: underline !important;
+}
+
 /* Media Queries */
 @media (max-width: 768px) {
     .product-card {
@@ -988,7 +1003,7 @@ input[type=number]::-webkit-outer-spin-button {
             <button class="btn-close" onclick="window.location.href='homepage.php';" aria-label="Close">✖</button>
             <!-- Image Section -->
             <div class="col-md-6 product-image text-center">
-                <img alt="Product Image" class="img-fluid" style="width: 100%;">
+                <img alt="Product Image" class="img-fluid" style="width: 100%; height: 100%">
                 <script>
                     // Pass the available colors to JavaScript
                     let colors = <?= json_encode(array_column($product_colors, 'product_pic')) ?>;
@@ -1040,10 +1055,15 @@ input[type=number]::-webkit-outer-spin-button {
                         <img src="Assets/svg(icons)/shopping_cart.svg" alt="cart"> Add To Cart
                     </button>
                 
-                </form>
-                    <button class="btn-custom buy-now">Buy Now</button>
-                    </div>
-                </form>
+                    </form>
+                        <button class="btn-custom buy-now">Buy Now</button>
+                        </div>
+                    </form>
+
+                    <button type="submit" class="btn-custom" name="bulk" style="margin-left: 90px;">
+                        <img src="Assets/svg(icons)/shopping_cart.svg" alt="cart">Bulk Order
+                    </button>
+
                 </div>
                 
                 <div class="details">
@@ -1061,49 +1081,51 @@ input[type=number]::-webkit-outer-spin-button {
                     
                     <div class="review-filter">
                         <div class="total-reviews">
-                            <h3 style="font-size: 35px;"><?= htmlspecialchars($Ave) ?><i class="fas fa-star" style="font-size: 20px;"></i></h3>
-                            <p>Based on <?= htmlspecialchars($totalReviews) ?> reviews</p>
+                            <h3 style="font-size: 33px;"><?= htmlspecialchars($Ave) ?><i class="fas fa-star" style="font-size: 20px;"></i></h3>
+                            <p>Based on <?= htmlspecialchars($totalReviews) ?> Reviews</p>
                         </div>
-                        <div class="star-container"> 
-                            <p class="stars">
-                                <a href="#">5 Star
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                </a>
-                            </p>
-                            <p class="stars">
-                                <a href="#">4 Star
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                </a>
-                            </p>
-                            <p class="stars">
-                                <a href="#">3 Star
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                
-                                </a>
-                            </p>
-                            <p class="stars">
-                                <a href="#">2 Star
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                
-                                </a>
-                            </p>
-                            <p class="stars">
-                                <a href="#">1 Star
-                                <i class="fas fa-star"></i>
-                                
-                                </a>
-                            </p>
-                        </div>
+                        <div class="star-container">
+                        <p class="stars">
+                            <a href="?product_id=<?= $product_id ?>&rating=0" class="<?= $ratingFilter == 0 ? 'active-filter' : '' ?>">All Reviews</a>
+                        </p>
+                        <p class="stars">
+                            <a href="?product_id=<?= $product_id ?>&rating=5" class="<?= $ratingFilter == 5 ? 'active-filter' : '' ?>">5 Star
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            </a>
+                        </p>
+                        <p class="stars">
+                            <a href="?product_id=<?= $product_id ?>&rating=4" class="<?= $ratingFilter == 4 ? 'active-filter' : '' ?>">4 Star
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            </a>
+                        </p>
+                        <p class="stars">
+                            <a href="?product_id=<?= $product_id ?>&rating=3" class="<?= $ratingFilter == 3 ? 'active-filter' : '' ?>">3 Star
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            </a>
+                        </p>
+                        <p class="stars">
+                            <a href="?product_id=<?= $product_id ?>&rating=2" class="<?= $ratingFilter == 2 ? 'active-filter' : '' ?>">2 Star
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            </a>
+                        </p>
+                        <p class="stars">
+                            <a href="?product_id=<?= $product_id ?>&rating=1" class="<?= $ratingFilter == 1 ? 'active-filter' : '' ?>">1 Star
+                            <i class="fas fa-star"></i>
+                            </a>
+                        </p>
+                    </div>
+
+
                     </div>
                 
                     <div class="review-header">
@@ -1144,43 +1166,31 @@ input[type=number]::-webkit-outer-spin-button {
                         </div>
 
                         <div class="all-reviews">
-                            <?php foreach ($reviews as $review): ?>
-                            <div class="review-con">
-                                <div class="review">
-                                <h3><?= htmlspecialchars($review['user_firstname']) ?> 
-                                    <span><?= htmlspecialchars($review['user_lastname']) ?></span> | 
-                                    <span class="date"><?= htmlspecialchars($review['time']) ?></span>
-                                </h3>                                    
-                                    <div class="rating-stars">
-                                        <?php
-                                        $rating = (int)$review['rating']; // Ensure the rating is an integer
-                                        for ($i = 1; $i <= 5; $i++) {
-                                            if ($i <= $rating) {
-                                                echo '<i class="fas fa-star"></i>'; // Filled star
-                                            } else {
-                                                echo '<i class="far fa-star"></i>'; // Empty star
-                                            }
-                                        }
-                                        ?>
+                            <?php if (empty($reviews)): ?>
+                                <p>No reviews found for this filter.</p>
+                            <?php else: ?>
+                                <?php foreach ($reviews as $review): ?>
+                                    <div class="review-con">
+                                        <div class="review">
+                                            <h3><?= htmlspecialchars($review['user_firstname']) ?> 
+                                                <span><?= htmlspecialchars($review['user_lastname']) ?></span> | 
+                                                <span class="date"><?= htmlspecialchars($review['time']) ?></span>
+                                            </h3>                                    
+                                            <div class="rating-stars">
+                                                <?php
+                                                $rating = (int)$review['rating'];
+                                                for ($i = 1; $i <= 5; $i++) {
+                                                    echo $i <= $rating ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+                                                }
+                                                ?>
+                                            </div>
+                                            <h4><?= htmlspecialchars($review['title']) ?></h4>
+                                            <p><?= htmlspecialchars($review['description']) ?></p>
+                                        </div>
                                     </div>
-                                    <h4><?= htmlspecialchars($review['title']) ?></h4>
-                                    <p><?= htmlspecialchars($review['description']) ?></p>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <!-- Pagination Controls -->
-                        <div class="pagination">
-                            <?php if ($current_page > 1): ?>
-                                <a href="?product_id=<?= $product_id ?>&page=<?= $current_page - 1 ?>" class="prev-btn">Previous</a>
+                                <?php endforeach; ?>
                             <?php endif; ?>
-
-                            <?php if ($current_page < $total_pages): ?>
-                                <a href="?product_id=<?= $product_id ?>&page=<?= $current_page + 1 ?>" class="next-btn">Next</a>
-                            <?php endif; ?>
-                        </div>
-                        
+                        </div>  
                     </div>
                 </div>
             </div>
