@@ -9,3 +9,4 @@
 11/21 > [product.php] - updated product ratings/review system (still no filtering)\
 11/23 > [product.php] - updated product ratings/review system w/ filtering\
 11/25 > [bulkorder.php] - started bulk order form display & inputs (no display of item subtotal & total on the details section)\
+------> [product.php] - bulk order button functionality
