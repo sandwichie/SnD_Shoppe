@@ -773,7 +773,7 @@ h1, h3 {
                         <span class="text-warning">NOT AVAILABLE</span>
                     </p>
                     <p>
-                        <strong>SUBTOTAL:</strong>
+                        <strong>TOTAL:</strong>
                         <span class="total text-danger">P <?php echo number_format($subtotal, 2); ?></span>
                     </p>
                 </div>
