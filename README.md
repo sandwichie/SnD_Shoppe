@@ -6,4 +6,5 @@
 11/13 > [forgotPass.php] + [resetPass.php]\
 ------> [products.php] - product image and quantity counter\
 11/20 > [product.php] - updated product ratings/review system (no filtering)\
-11/21 > [product.php] - updated product ratings/review system (still no filtering)
+11/21 > [product.php] - updated product ratings/review system (still no filtering)\
+11/23 > [product.php] - updated product ratings/review system w/ filtering\
