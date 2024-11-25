@@ -32,7 +32,7 @@ $user_email = $_SESSION['user_email'];
 $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
 
 // Query to get the main product details
-$stmt = $pdo->prepare('SELECT product_name, price, quantity, product_descript FROM products WHERE product_id = :product_id');
+$stmt = $pdo->prepare('SELECT product_name, price, quantity, product_descript, roll_price FROM products WHERE product_id = :product_id');
 $stmt->execute(['product_id' => $product_id]);
 $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -175,6 +175,56 @@ if ($ratingFilter > 0) {
 // Fetch all reviews
 $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['buy'])) {
+    $quantity = isset($_POST['qty']) ? intval($_POST['qty']) : 1;
+    $color = isset($_POST['color']) ? $_POST['color'] : '';
+    $total_price = $product['price'] * $quantity;
+
+    // Insert into shopping_cart table
+    $stmt = $pdo->prepare("INSERT INTO shopping_cart (product_id, product, unit_price, quantity, customer_id, lastname, firstname, color, total_price) 
+                           VALUES (:product_id, :product_name, :price, :quantity, :customer_id, :lastname, :firstname, :color, :total_price)");
+    $stmt->execute([
+        ':product_id' => $product_id,
+        ':product_name' => $product['product_name'],
+        ':price' => $product['price'],
+        ':quantity' => $quantity,
+        ':customer_id' => $user_id,
+        ':lastname' => $user['lastname'],
+        ':firstname' => $user['firstname'],
+        ':color' => $color,
+        ':total_price' => $total_price
+    ]);
+
+    // Redirect to cart page after adding to cart
+    header("Location: checkout.php");
+    exit;
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['bulk'])) {
+    try {
+        // Prepare and execute the SQL statement
+        $stmt = $pdo->prepare("
+            INSERT INTO bulk_shopping_cart (product_id, product, customer_id, firstname, lastname, unit_price, roll_price) 
+            VALUES (:product_id, :product_name, :customer_id, :firstname, :lastname, :price, :roll_price)
+        ");
+        $stmt->execute([
+            ':product_id' => $product_id,                  
+            ':product_name' => $product['product_name'],  
+            ':customer_id' => $user_id,                  
+            ':firstname' => $user['firstname'],          
+            ':lastname' => $user['lastname'],            
+            ':price' => $product['price'],
+            ':roll_price' => $product['roll_price']
+        ]);
+
+        // Redirect to the bulk order cart page
+        header("Location: bulkorder.php");
+        exit;
+    } catch (PDOException $e) {
+        // Handle SQL errors
+        echo "Error: " . htmlspecialchars($e->getMessage());
+    }
+}
 
 ?>
 
@@ -482,6 +532,7 @@ button {
 .qty input {
     text-align: center;
     width: 20%;
+    font-size: 17px;
 }
 
 /* For Chrome, Edge, Safari */
@@ -495,12 +546,13 @@ input[type=number]::-webkit-outer-spin-button {
     width: auto; 
     height: auto;
 	color: #1e1e1e;
-	font-size: 10px;
+	font-size: 15px;
     background-color: #dcc07a;
 }
 
 .qty label {
     margin-right: 10px;
+    font-size: 15px;
 }
 
 .details {
@@ -968,7 +1020,7 @@ input[type=number]::-webkit-outer-spin-button {
 
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link nav-link-black active" aria-current="page" href="#">
+                        <a class="nav-link nav-link-black active" aria-current="page" href="cart.php">
                             <img src="Assets/svg(icons)/shopping_cart.svg" alt="cart">
                         </a>
                     </li>
@@ -1025,6 +1077,7 @@ input[type=number]::-webkit-outer-spin-button {
             <div class="col-md-6 product-details">
                 <h1><?= htmlspecialchars($product['product_name']) ?></h1>
                 <p>Price: <span class="price-tag"><?= htmlspecialchars($product['price']) ?></span> per yard</p>
+                <p>Roll Price: <span class="price-tag"><?= htmlspecialchars($product['roll_price']) ?></span> per roll</p>
                 <p>Available Stocks: <span><?= htmlspecialchars($product['quantity']) ?> Yards</span></p>
 
                 <!-- Color Options Section -->
@@ -1043,7 +1096,7 @@ input[type=number]::-webkit-outer-spin-button {
                 <input type="hidden" name="color" value="">
                 <div class="counter-qty">
                         <p class="qty">
-                            <label for="qty">Quantity:</label>
+                            <label for="qty">Quantity <br>(Max. of 29 Yards):</label>
                             <button class="qtyminus" aria-hidden="true">&minus;</button>
                             <input type="number" name="qty" id="qty" min="1" max="100" step="1" value="1">
                             <button class="qtyplus" aria-hidden="true">&plus;</button>
@@ -1056,13 +1109,18 @@ input[type=number]::-webkit-outer-spin-button {
                     </button>
                 
                     </form>
-                        <button class="btn-custom buy-now">Buy Now</button>
+                        <form method="POST" action="">
+                        <button class="btn-custom buy-now" name="buy">Buy Now</button>
                         </div>
                     </form>
 
-                    <button type="submit" class="btn-custom" name="bulk" style="margin-left: 90px;">
-                        <img src="Assets/svg(icons)/shopping_cart.svg" alt="cart">Bulk Order
-                    </button>
+                    <p style="margin-left: 60px; margin-bottom: -5px">Want to order 30+ Yards or per Roll?</p>
+                    
+                    <form method="POST" action="">
+                        <button type="submit" class="btn-custom" name="bulk" style="margin-left: 90px;">
+                            <img src="Assets/svg(icons)/shopping_cart.svg" alt="bulk">Bulk Order
+                        </button>
+                    </form>
 
                 </div>
                 
