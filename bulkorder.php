@@ -64,20 +64,19 @@ $customer_name = $profile_data['firstname'] . ' ' . $profile_data['lastname'];
 $address = $profile_data['address'] . ', ' . $profile_data['subdivision'] . ', ' . $profile_data['barangay'] . ', ' . $profile_data['city'] . ', ' . $profile_data['place'];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
-    // Retrieve form data
     $paymentMethod = $_POST['payment-option'] ?? null;
     $deliveryDate = $_POST['date'] ?? null;
+    $deliveryMethod = $_POST['delivery-method'] ?? null; // Ensure this field is in the form
     $yards = $_POST['yards'] ?? [];
     $rolls = $_POST['rolls'] ?? [];
     $colorOptions = $_POST['color_option'] ?? [];
 
-    foreach ($_POST['yards'] as $productId => $yards) {
-        $yards = isset($_POST['yards'][$productId]) ? (int)$_POST['yards'][$productId] : 0;
-        $rolls = isset($_POST['rolls'][$productId]) ? (int)$_POST['rolls'][$productId] : 0;
-        $color = $_POST['color_option'][$productId] ?? '';
+    foreach ($yards as $productId => $yardsValue) {
+        $yards = (int)$yardsValue;
+        $rolls = isset($rolls[$productId]) ? (int)$rolls[$productId] : 0;
+        $color = $colorOptions[$productId] ?? '';
 
         try {
-            // Update the existing record in the database
             $stmt = $pdo->prepare("
                 UPDATE bulk_shopping_cart
                 SET 
@@ -99,13 +98,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
                 ':product_id' => $productId
             ]);
         } catch (PDOException $e) {
-            // Handle SQL errors
-            echo "Error updating bulk shopping cart: " . htmlspecialchars($e->getMessage());
+            error_log("Error updating bulk shopping cart: " . $e->getMessage());
+            echo "Failed to save changes. Please try again.";
         }
     }
-
-    // Redirect to the cart page after the update
-    
+   
     exit;
 }
 
@@ -566,7 +563,7 @@ h1, h3 {
   </head>
   <body class="vh-100">
     <!-- Navbar -->
-    <!-- Navbar -->
+
     <nav
       class="navbar navbar-expand-lg navbar-dark"
       style="
@@ -808,11 +805,8 @@ h1, h3 {
                             <button class="order-btn btn btn-primary btn-lg w-100 mb-3" style="background-color: #901A1B; border:none; margin-right: 5px;" type="submit" name="remove">Remove</button>
                         </form>
                     </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
 
-        <!-- Subtotal Calculation -->
+                     <!-- Subtotal Calculation -->
         <script>
             function updateSubtotal(productId) {
                 // Get input values
@@ -862,6 +856,10 @@ h1, h3 {
             window.onload = initializeTotals;
 
         </script>
+                </div>
+                <?php endforeach; ?>
+            </div>
+
 
         <!-- Details Section -->
         <div class="col-lg-6 col-md-12">
