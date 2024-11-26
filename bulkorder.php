@@ -815,37 +815,25 @@ h1, h3 {
                         <div class="details border rounded shadow-sm p-3 d-flex flex-column">
                             <h3 class="text-dark mb-3">CUSTOMER DETAILS</h3>
                             <p>
-                            <strong>FULL NAME:</strong>
-                            <span class="form-control-plaintext ms-3"><?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname'] ?? ''); ?></span>
+                                <strong>FULL NAME:</strong>
+                                <span class="form-control-plaintext ms-3"><?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname'] ?? ''); ?></span>
                             </p>
                             <p>
-                            <strong>PHONE:</strong>
-                            <span class="form-control-plaintext ms-3"><?php echo htmlspecialchars($profile_data['phone'] ?? ''); ?></span>
+                                <strong>PHONE:</strong>
+                                <span class="form-control-plaintext ms-3"><?php echo htmlspecialchars($profile_data['phone'] ?? ''); ?></span>
                             </p>
                             <p>
-                            <strong>SHIPPING ADDRESS:</strong>
-                            <span class="form-control-plaintext ms-3">
-                                <?php echo htmlspecialchars($profile_data['address'] . ' ' . $profile_data['subdivision'] . ' ' . $profile_data['barangay'] . ' ' . $profile_data['postal'] . ' ' . $profile_data['city'] . ' ' . $profile_data['place']); ?>
-                            </span>
+                                <strong>SHIPPING ADDRESS:</strong>
+                                <span class="form-control-plaintext ms-3">
+                                    <?php echo htmlspecialchars($profile_data['address'] . ' ' . $profile_data['subdivision'] . ' ' . $profile_data['barangay'] . ' ' . $profile_data['postal'] . ' ' . $profile_data['city'] . ' ' . $profile_data['place']); ?>
+                                </span>
                             </p>
-                            <hr class="my-3" />
-
-                            <div class="subtotal p-3 rounded shadow-sm">
                             <p>
                                 <strong>SHIPPING FEE:</strong>
                                 <span style="color: #C08C3C;">NOT AVAILABLE</span>
                             </p>
-                            <p>
-                                <strong>GRAND TOTAL: <span id="grand-total" class="price text-success">P 0.00</span></strong>
-                            </p>
-                            </div>
 
                             <div class="buttons mt-4">
-                            <p>
-                                <h6 style="font-size: 15px; margin-top: -20px; color:#1e1e1e; padding: 5px; text-align: justify">
-                                Please make sure all your details and selected items are correct before proceeding with the request to avoid delays or issues!
-                                </h6>
-                            </p>
                             <button class="order-btn btn btn-primary btn-lg w-100 mb-3" type="submit" name="request_bulk">START ORDER REQUEST</button>
                             <button class="contact-btn btn btn-outline-primary btn-lg w-100" type="button">CONTACT SELLER</button>
                             <button class="home-btn btn btn-outline-primary btn-lg w-100" type="button" onclick="window.location.href='homepage.php';">RETURN TO HOMEPAGE TO ORDER MORE!</button>
@@ -856,44 +844,6 @@ h1, h3 {
             </div>
         </form>
     </section>
-
-    <script>// Function to calculate and update totals
-    function updateTotals() {
-        let grandTotal = 0;
-
-        // Loop through each product and calculate subtotal
-        <?php foreach ($bulk_items as $bulk): ?>
-            // Get the price per yard and per roll
-            let unitPrice = parseFloat(document.getElementById('price-per-yard-<?php echo $bulk['product_id']; ?>').textContent.trim().replace('P', '').replace(',', ''));
-            let rollPrice = parseFloat(document.getElementById('price-per-roll-<?php echo $bulk['product_id']; ?>').textContent.trim().replace('P', '').replace(',', ''));
-
-            // Get the user input for yards and rolls
-            let yards = parseInt(document.getElementById('yards-value-<?php echo $bulk['product_id']; ?>').value) || 0;
-            let rolls = parseInt(document.getElementById('rolls-value-<?php echo $bulk['product_id']; ?>').value) || 0;
-
-            // Calculate subtotal for this product
-            let subtotal = (yards * unitPrice) + (rolls * rollPrice);
-            subtotal = subtotal.toFixed(2); // Format the subtotal to 2 decimal places
-
-            // Update the subtotal displayed on the page
-            document.getElementById('subtotal-<?php echo $bulk['product_id']; ?>').textContent = "P " + subtotal;
-
-            // Add the product's subtotal to the grand total
-            grandTotal += parseFloat(subtotal);
-        <?php endforeach; ?>
-
-        // Update the grand total displayed on the page
-        document.getElementById('grand-total').textContent = "P " + grandTotal.toFixed(2);
-    }
-
-        // Event listeners for input changes
-        <?php foreach ($bulk_items as $bulk): ?>
-            document.getElementById('yards-value-<?php echo $bulk['product_id']; ?>').addEventListener('input', updateTotals);
-            document.getElementById('rolls-value-<?php echo $bulk['product_id']; ?>').addEventListener('input', updateTotals);
-        <?php endforeach; ?>
-
-    </script>
-    
     <script src="script.js"></script>
 </body>
 </html>
