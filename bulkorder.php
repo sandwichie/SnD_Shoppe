@@ -64,19 +64,36 @@ $customer_name = $profile_data['firstname'] . ' ' . $profile_data['lastname'];
 $address = $profile_data['address'] . ', ' . $profile_data['subdivision'] . ', ' . $profile_data['barangay'] . ', ' . $profile_data['city'] . ', ' . $profile_data['place'];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
-    $paymentMethod = $_POST['payment-option'] ?? null;
-    $deliveryDate = $_POST['date'] ?? null;
-    $deliveryMethod = $_POST['delivery-method'] ?? null; // Ensure this field is in the form
+    // Get payment, delivery details, and item quantities
+     // Get payment, delivery details, and item quantities
+     $paymentMethod = $_POST['payment_option'] ?? null;  // Corrected to 'payment_option'
+     $deliveryDate = $_POST['delivery_date'] ?? null;    // Corrected to 'delivery_date'
+     $deliveryMethod = $_POST['delivery_method'] ?? null; // Corrected to 'delivery_method'
     $yards = $_POST['yards'] ?? [];
     $rolls = $_POST['rolls'] ?? [];
     $colorOptions = $_POST['color_option'] ?? [];
 
+     // Ensure the required fields are provided
+     if (!$paymentMethod || !$deliveryDate || !$deliveryMethod) {
+        echo "Please select all required fields.";
+        exit;
+    }
+
+    // Validate payment method
+    $validPaymentMethods = ['COD', 'GCash', 'Maya'];
+    if (!in_array($paymentMethod, $validPaymentMethods)) {
+        echo "Invalid payment method.";
+        exit;
+    }
+
+    // Iterate through the yards array to update each product
     foreach ($yards as $productId => $yardsValue) {
-        $yards = (int)$yardsValue;
-        $rolls = isset($rolls[$productId]) ? (int)$rolls[$productId] : 0;
+        $yardsQuantity = (int)$yardsValue;  
+        $rollsQuantity = isset($rolls[$productId]) ? (int)$rolls[$productId] : 0;
         $color = $colorOptions[$productId] ?? '';
 
         try {
+            // Prepare and execute the update query
             $stmt = $pdo->prepare("
                 UPDATE bulk_shopping_cart
                 SET 
@@ -92,17 +109,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
                 ':payment_method' => $paymentMethod,
                 ':delivery_date' => $deliveryDate,
                 ':delivery_method' => $deliveryMethod,
-                ':yards' => $yards,
-                ':rolls' => $rolls,
+                ':yards' => $yardsQuantity,
+                ':rolls' => $rollsQuantity,
                 ':color' => $color,
                 ':product_id' => $productId
             ]);
         } catch (PDOException $e) {
             error_log("Error updating bulk shopping cart: " . $e->getMessage());
-            echo "Failed to save changes. Please try again.";
+            echo "Failed to save changes for Product ID $productId. Please try again.";
         }
     }
-   
+    header("Location: cart.php");
+    echo "Bulk shopping cart updated successfully.";
+
     exit;
 }
 
@@ -552,12 +571,24 @@ h1, h3 {
     border-color: #e044a5; /* Highlight input field on focus */
 }
 
-.remove-item {
-    display: flex;        /* Enable Flexbox */
-    justify-content: flex-end; /* Align children (the button) to the right */
-    margin-right: 5px;
+.remove-btn {
+    background-color: #901A1B;
+    border: none;
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
+/* Hover effect for the remove button */
+.remove-btn:hover {
+    background-color: #FF4C4C;  /* Lighter red on hover */
+    transform: scale(1.05);  /* Slightly grow the button */
+    color: white;  /* Ensure text color changes to white */
+}
 
 </style>
   </head>
@@ -652,274 +683,217 @@ h1, h3 {
       </div>
     </div>
 
-    <!-- Payment and Delivery Option Content -->
     <section class="delivery-page container my-5">
-  
-      <div class="payment-delivery-options shadow p-4 mb-5">
-        <h3 class="text-center mb-4">PAYMENT AND DELIVERY OPTION</h3>
-        <div class="row g-3">
+        <form method="POST" action="">
+            <div class="payment-delivery-options shadow p-4 mb-5">
+                <h3 class="text-center mb-4">PAYMENT AND DELIVERY OPTION</h3>
+                <div class="row g-3">
+                    <!-- PAYMENT METHOD -->
+                    <div class="col-md-6">
+                        <label class="form-label">PAYMENT METHOD:</label>
+                        <select class="form-select shadow-sm" id="payment-opt" name="payment_option">
+                            <option selected value="COD">Cash on Delivery (COD)</option>
+                            <option value="GCash">GCash</option>
+                            <option value="Maya">Maya</option>
+                        </select>
+                    </div>
 
-          <!-- PAYMENT METHOD -->
-          <div class="col-md-6">
-            <label class="form-label">PAYMENT METHOD:</label>
-            <select class="form-select shadow-sm" id="payment-opt" name="payment-option">
-              <option selected>Cash on Delivery (COD)</option>
-              <option value="gcash">GCash</option>
-              <option value="maya">Maya</option>
-            </select>
-          </div>
-
-          <!-- SELECTED DATE -->
-            <div class="col-md-6">
-                <label class="form-label">SELECT PREFFERED DELIVERY DATE:</label>
-                <input
-                    type="date"
-                    class="form-control shadow-sm"
-                    placeholder="MM/DD/YYYY"
-                    name="date"
-                />
-            </div>
-        </div>
-
-        <!-- DELIVERY METHOD -->
-        <div class="delivery-method mt-4">
-            <label class="form-label">DELIVERY METHOD:</label>
-            <div class="d-flex flex-wrap justify-content-around mt-2">
-                <div class="form-check">
-                    <input
-                        type="radio"
-                        id="pickup"
-                        name="deliveryMethod"
-                        class="form-check-input"
-                        checked
-                    />
-                    <label for="pickUp" class="form-check-label"
-                        >PICK UP IN STORE</label>
+                    <!-- SELECTED DATE -->
+                    <div class="col-md-6">
+                        <label class="form-label">SELECT PREFERRED DELIVERY DATE:</label>
+                        <input type="date" class="form-control shadow-sm" name="delivery_date" />
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input
-                        type="radio"
-                        id="contact"
-                        name="deliveryMethod"
-                        class="form-check-input"
-                    />
-                    <label for="contact" class="form-check-label">CONTACT SELLER (Preferred option for COD payment method)</label>
-                </div> 
-            </div>
-        </div>
-      </div>
 
-    <div class="container my-3">
-        <div class="row">
-        <!-- Product Details -->
-            <div class="col-lg-6 col-md-12">
-                <?php foreach ($bulk_items as $bulk): ?>
-                <div class="product-details border rounded shadow-sm p-3 d-flex flex-column" style="margin-bottom: 15px">
-                    <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?></h2>
-                    <p>
-                        <h6 style="font-size: 15px; margin-top: -23px; color:#1e1e1e; text-align: justify">Type in <span style="font-weight: bold; font-size: 20px; color: #198754;">'0'</span> in the number inputs to not order in YARDS or ROLLS.</h4>
-                    </p>
-                    <p class="mb-3">
-                        <span class="font-weight-bold text-muted">PRICE: </span>
-                        <span class="price text-success" id="price-per-yard-<?php echo $bulk['product_id']; ?>">
-                            <?php echo htmlspecialchars($bulk['unit_price']); ?>
-                        </span>
-                        <span class="text-muted">PER YARD</span><br>
-                    </p>
-
-                    <!-- Yards Input -->
-                    <div class="rolls d-flex align-items-center mb-4">
-                        <span class="font-weight-bold text-muted me-3">YARDS (max. 50):</span>
-                        <div class="quantity-container d-flex align-items-center">
-                            <input
-                                type="number"
-                                id="yards-value-<?php echo $bulk['product_id']; ?>"
-                                class="form-control form-control-sm text-center"
-                                name="yards[<?php echo $bulk['product_id']; ?>]"
-                                value="0" 
-                                max="50"
-                                min="30"
-                                style="width: 60px; background-color: white; border: none; outline: none; text-align: center;"
-                                oninput="updateSubtotal(<?php echo $bulk['product_id']; ?>)"
-                            />
-                            <span class="ms-2">YARDS</span>
+                <!-- DELIVERY METHOD -->
+                <div class="delivery-method mt-4">
+                    <label class="form-label">DELIVERY METHOD:</label>
+                        <div class="d-flex flex-wrap justify-content-around mt-2">
+                        <div class="form-check">
+                            <input type="radio" id="pickup" name="delivery_method" value="PickUp" class="form-check-input" checked />
+                            <label for="pickup" class="form-check-label">PICK UP IN STORE</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="radio" id="contact" name="delivery_method" value="Contact" class="form-check-input" />
+                            <label for="contact" class="form-check-label">CONTACT SELLER (Preferred option for COD payment method)</label>
+                        </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Roll Price -->
-                    <p class="mb-3">
-                        <span class="font-weight-bold text-muted">PRICE: </span>
-                        <span class="price text-success" id="price-per-roll-<?php echo $bulk['product_id']; ?>">
-                            <?php echo htmlspecialchars($bulk['roll_price']); ?>
-                        </span>
-                        <span class="text-muted">PER ROLL</span>
-                    </p>
+                <div class="container my-3">
+            <div class="row">
+                <!-- Product Details -->
+                <div class="col-lg-6 col-md-12">
+                    <?php foreach ($bulk_items as $bulk): ?>
+                        <div class="product-details border rounded shadow-sm p-3 d-flex flex-column" style="margin-bottom: 15px;">
+                            <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?></h2>
 
-                    <!-- Rolls Input -->
-                    <div class="rolls d-flex align-items-center mb-4" style="margin-bottom: -50px;">
-                        <span class="font-weight-bold text-muted me-3">ROLLS (60 yards per roll):</span>
-                        <div class="quantity-container d-flex align-items-center">
-                            <input
-                                type="number"
-                                id="rolls-value-<?php echo $bulk['product_id']; ?>"
-                                name="rolls[<?php echo $bulk['product_id']; ?>]"
-                                class="form-control form-control-sm text-center"
-                                value="0" 
-                                max="10"
-                                min="0"
-                                style="width: 60px; background-color: white; border: none; outline: none; text-align: center;"
-                                oninput="updateSubtotal(<?php echo $bulk['product_id']; ?>)"
-                            />
-                            <span class="ms-2">ROLLS</span>
+                            <p class="mb-3">
+                                <span class="font-weight-bold text-muted">PRICE: </span>
+                                <span class="price text-success" id="price-per-yard-<?php echo $bulk['product_id']; ?>">
+                                    <?php echo htmlspecialchars($bulk['unit_price']); ?>
+                                </span>
+                                <span class="text-muted">PER YARD</span><br />
+                            </p>
+
+                            <!-- Yards Input -->
+                            <div class="rolls d-flex align-items-center mb-4">
+                                <span class="font-weight-bold text-muted me-3">YARDS (min. 30 & max. 50):</span>
+                                <div class="quantity-container d-flex align-items-center">
+                                    <input
+                                        type="number"
+                                        id="yards-value-<?php echo $bulk['product_id']; ?>"
+                                        class="form-control form-control-sm text-center"
+                                        name="yards[<?php echo $bulk['product_id']; ?>]"
+                                        value="30"
+                                        max="50"
+                                        min="0"
+                                        style="width: 60px; background-color: white; border: none; outline: none; text-align: center;"
+                                    />
+                                    <span class="ms-2">YARDS</span>
+                                </div>
+                            </div>
+
+                            <p class="mb-3">
+                                <span class="font-weight-bold text-muted">PRICE: </span>
+                                <span class="price text-success" id="price-per-roll-<?php echo $bulk['product_id']; ?>">
+                                    <?php echo htmlspecialchars($bulk['roll_price']); ?>
+                                </span>
+                                <span class="text-muted">PER ROLL</span><br />
+                            </p>
+
+                            <!-- Rolls Input -->
+                            <div class="rolls d-flex align-items-center mb-4">
+                                <span class="font-weight-bold text-muted me-3">ROLLS (60 yards per roll):</span>
+                                <div class="quantity-container d-flex align-items-center">
+                                    <input
+                                        type="number"
+                                        id="rolls-value-<?php echo $bulk['product_id']; ?>"
+                                        class="form-control form-control-sm text-center"
+                                        name="rolls[<?php echo $bulk['product_id']; ?>]"
+                                        value="0"
+                                        max="10"
+                                        min="0"
+                                        style="width: 60px; background-color: white; border: none; outline: none; text-align: center;"
+                                    />
+                                    <span class="ms-2">ROLLS</span>
+                                </div>
+                            </div>
+
+                            <!-- Subtotal for the product -->
+                            <p>
+                                <strong>SUBTOTAL:</strong>
+                                <span id="subtotal-<?php echo $bulk['product_id']; ?>" class="price text-success">P 0.00</span>
+                            </p>
+
+                            <!-- Color Selector -->
+                            <div class="selector mt-3">
+                                <label class="form-label">Available Colors:</label>
+                                <div class="color-options d-flex flex-wrap">
+                                    <select class="form-select shadow-sm" name="color_option[<?php echo $bulk['product_id']; ?>]">
+                                        <?php if (!empty($bulk_colors[$bulk['product_id']])): ?>
+                                        <?php foreach ($bulk_colors[$bulk['product_id']] as $color): ?>
+                                            <option value="<?php echo htmlspecialchars($color['color_name']); ?>"><?php echo htmlspecialchars($color['color_name']); ?></option>
+                                        <?php endforeach; ?>
+                                        <?php else: ?>
+                                        <option>No colors available</option>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <!-- Remove Button -->
+                            <form method="POST" action="">
+                                <input type="hidden" name="bulk_cart_id" value="<?php echo $bulk['bulk_cart_id']; ?>" />
+                                <button type="submit" name="remove" class="home-btn btn btn-outline-primary btn-lg w-100" style="background-color: #901A1B; margin-top: 15px;">REMOVE</button>
+                            </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <!-- Customer Details -->
+                    <div class="col-lg-6 col-md-12">
+                        <div class="details border rounded shadow-sm p-3 d-flex flex-column">
+                            <h3 class="text-dark mb-3">CUSTOMER DETAILS</h3>
+                            <p>
+                            <strong>FULL NAME:</strong>
+                            <span class="form-control-plaintext ms-3"><?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname'] ?? ''); ?></span>
+                            </p>
+                            <p>
+                            <strong>PHONE:</strong>
+                            <span class="form-control-plaintext ms-3"><?php echo htmlspecialchars($profile_data['phone'] ?? ''); ?></span>
+                            </p>
+                            <p>
+                            <strong>SHIPPING ADDRESS:</strong>
+                            <span class="form-control-plaintext ms-3">
+                                <?php echo htmlspecialchars($profile_data['address'] . ' ' . $profile_data['subdivision'] . ' ' . $profile_data['barangay'] . ' ' . $profile_data['postal'] . ' ' . $profile_data['city'] . ' ' . $profile_data['place']); ?>
+                            </span>
+                            </p>
+                            <hr class="my-3" />
+
+                            <div class="subtotal p-3 rounded shadow-sm">
+                            <p>
+                                <strong>SHIPPING FEE:</strong>
+                                <span style="color: #C08C3C;">NOT AVAILABLE</span>
+                            </p>
+                            <p>
+                                <strong>GRAND TOTAL: <span id="grand-total" class="price text-success">P 0.00</span></strong>
+                            </p>
+                            </div>
+
+                            <div class="buttons mt-4">
+                            <p>
+                                <h6 style="font-size: 15px; margin-top: -20px; color:#1e1e1e; padding: 5px; text-align: justify">
+                                Please make sure all your details and selected items are correct before proceeding with the request to avoid delays or issues!
+                                </h6>
+                            </p>
+                            <button class="order-btn btn btn-primary btn-lg w-100 mb-3" type="submit" name="request_bulk">START ORDER REQUEST</button>
+                            <button class="contact-btn btn btn-outline-primary btn-lg w-100" type="button">CONTACT SELLER</button>
+                            <button class="home-btn btn btn-outline-primary btn-lg w-100" type="button" onclick="window.location.href='homepage.php';">RETURN TO HOMEPAGE TO ORDER MORE!</button>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="selector mt-3" style="margin-bottom: 20px;">
-                        <label class="form-label">Available Colors:</label>
-                        <div class="color-options d-flex flex-wrap">
-                            <select class="form-select shadow-sm" id="color-option-<?php echo $bulk['product_id']; ?>" name="color_option[<?php echo $bulk['product_id']; ?>]">
-                                <?php 
-                                if (isset($bulk_colors[$bulk['product_id']]) && !empty($bulk_colors[$bulk['product_id']])): 
-                                    foreach ($bulk_colors[$bulk['product_id']] as $color): ?>
-                                        <option value="<?php echo htmlspecialchars($color['color_name']); ?>">
-                                            <?php echo htmlspecialchars($color['color_name']); ?>
-                                        </option>
-                                    <?php endforeach; 
-                                else: ?>
-                                    <option>No colors available</option>
-                                <?php endif; ?>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Item Subtotal Display -->
-                    <p>
-                        <strong>ITEM SUBTOTAL:</strong>
-                        <span id="subtotal-<?php echo $bulk['product_id']; ?>" style="font-weight: bold; font-size: 23px; color: #C08C3C;">P 0.00</span>
-                    </p>
-
-                    <!-- Remove Item -->
-                    <div class="remove-item">
-                        <form method="POST" action="">
-                            <input type="hidden" name="bulk_cart_id" value="<?php echo $bulk['bulk_cart_id']; ?>" />
-                            <button class="order-btn btn btn-primary btn-lg w-100 mb-3" style="background-color: #901A1B; border:none; margin-right: 5px;" type="submit" name="remove">Remove</button>
-                        </form>
-                    </div>
-
-                     <!-- Subtotal Calculation -->
-        <script>
-            function updateSubtotal(productId) {
-                // Get input values
-                const yards = parseFloat(document.getElementById(`yards-value-${productId}`).value) || 0;
-                const rolls = parseFloat(document.getElementById(`rolls-value-${productId}`).value) || 0;
-
-                // Get prices
-                const pricePerYard = parseFloat(document.getElementById(`price-per-yard-${productId}`).textContent) || 0;
-                const pricePerRoll = parseFloat(document.getElementById(`price-per-roll-${productId}`).textContent) || 0;
-
-                // Calculate subtotal
-                const yardsSubtotal = yards * pricePerYard;
-                const rollsSubtotal = rolls * pricePerRoll;
-                const totalSubtotal = yardsSubtotal + rollsSubtotal;
-
-                // Update subtotal display
-                document.getElementById(`subtotal-${productId}`).textContent = `P ${totalSubtotal.toFixed(2)}`;
-            
-                // Update grand total
-                updateGrandTotal();
-            }
-
-            function updateGrandTotal() {
-                let grandTotal = 0;
-
-                // Find all subtotals and sum them up
-                document.querySelectorAll("[id^='subtotal-']").forEach((subtotalElement) => {
-                    const subtotalText = subtotalElement.textContent.replace("P ", ""); // Remove "P " for calculation
-                    const subtotalValue = parseFloat(subtotalText) || 0;
-                    grandTotal += subtotalValue;
-                });
-
-                // Update grand total display
-                document.getElementById("grand-total").textContent = `P ${grandTotal.toFixed(2)}`;
-            }
-
-            // Initialize subtotals and grand total on page load
-            function initializeTotals() {
-                const productIds = document.querySelectorAll("[id^='yards-value-']");
-                productIds.forEach((input) => {
-                    const productId = input.id.split("-")[2]; // Extract product ID from the element ID
-                    updateSubtotal(productId);
-                });
-            }
-
-            // Run initialization when the page loads
-            window.onload = initializeTotals;
-
-        </script>
-                </div>
-                <?php endforeach; ?>
-            </div>
-
-
-        <!-- Details Section -->
-        <div class="col-lg-6 col-md-12">
-            <div class="details border rounded shadow-sm p-3 d-flex flex-column">
-                <h3 class="text-dark mb-3">CUSTOMER DETAILS</h3>
-                <p>
-                    <strong>FULL NAME:</strong>
-                    <span id="full-name" class="form-control-plaintext ms-3">
-                        <?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname'] ?? ''); ?>
-                    </span>
-                </p>
-                <p>
-                    <strong>PHONE:</strong>
-                    <span id="contact" class="form-control-plaintext ms-3">
-                        <?php echo htmlspecialchars($profile_data['phone'] ?? ''); ?>
-                    </span>
-                </p>
-                <p>
-                    <strong>SHIPPING ADDRESS:</strong>
-                    <span id="address" name= "address" class="form-control-plaintext ms-3">
-                    <?php echo htmlspecialchars($profile_data['address'] . ' ' . $profile_data['subdivision'] . ' ' . $profile_data['barangay']
-                    . ' ' . $profile_data['postal'] . ' ' . $profile_data['city'] . ' ' . $profile_data['place']); ?> 
-                </p>
-                <hr class="my-3" />
-
-                <div class="subtotal p-3 rounded shadow-sm">
-                    <p>
-                        <strong>SHIPPING FEE:</strong>
-                        <span style="color: #C08C3C;">NOT AVAILABLE</span>
-                    </p>
-                    <p>
-                        <strong>GRAND TOTAL: <span id="grand-total" class="price text-success">P 0.00</span></strong>
-                    </p>
-                </div>
-
-                <div class="buttons mt-4">
-                    <p>
-                        <h6 style="font-size: 15px; margin-top: -20px; color:#1e1e1e; padding: 5px; text-align: justify">Please make sure all your details and selected items are correct before proceeding with the request to avoid delays or issues!</h4>
-                    </p>
-                    <form method="POST" action="">
-                        <button class="order-btn btn btn-primary btn-lg w-100 mb-3" name=request_bulk>
-                            START ORDER REQUEST
-                        </button>
-                    </form>
-                    <button class="contact-btn btn btn-outline-primary btn-lg w-100">
-                        CONTACT SELLER
-                    </button>
-                    <form method="POST" action="homepage.php">
-                        <button class="home-btn btn btn-outline-primary btn-lg w-100">
-                            RETURN TO HOMEPAGE TO ORDER MORE!
-                        </button>
-                    </form>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
+        </form>
+    </section>
 
-    </section
+    <script>// Function to calculate and update totals
+    function updateTotals() {
+        let grandTotal = 0;
+
+        // Loop through each product and calculate subtotal
+        <?php foreach ($bulk_items as $bulk): ?>
+            // Get the price per yard and per roll
+            let unitPrice = parseFloat(document.getElementById('price-per-yard-<?php echo $bulk['product_id']; ?>').textContent.trim().replace('P', '').replace(',', ''));
+            let rollPrice = parseFloat(document.getElementById('price-per-roll-<?php echo $bulk['product_id']; ?>').textContent.trim().replace('P', '').replace(',', ''));
+
+            // Get the user input for yards and rolls
+            let yards = parseInt(document.getElementById('yards-value-<?php echo $bulk['product_id']; ?>').value) || 0;
+            let rolls = parseInt(document.getElementById('rolls-value-<?php echo $bulk['product_id']; ?>').value) || 0;
+
+            // Calculate subtotal for this product
+            let subtotal = (yards * unitPrice) + (rolls * rollPrice);
+            subtotal = subtotal.toFixed(2); // Format the subtotal to 2 decimal places
+
+            // Update the subtotal displayed on the page
+            document.getElementById('subtotal-<?php echo $bulk['product_id']; ?>').textContent = "P " + subtotal;
+
+            // Add the product's subtotal to the grand total
+            grandTotal += parseFloat(subtotal);
+        <?php endforeach; ?>
+
+        // Update the grand total displayed on the page
+        document.getElementById('grand-total').textContent = "P " + grandTotal.toFixed(2);
+    }
+
+        // Event listeners for input changes
+        <?php foreach ($bulk_items as $bulk): ?>
+            document.getElementById('yards-value-<?php echo $bulk['product_id']; ?>').addEventListener('input', updateTotals);
+            document.getElementById('rolls-value-<?php echo $bulk['product_id']; ?>').addEventListener('input', updateTotals);
+        <?php endforeach; ?>
+    </script>
 
     <script src="script.js"></script>
-  </body>
+</body>
 </html>
