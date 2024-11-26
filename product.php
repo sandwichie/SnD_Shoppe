@@ -202,9 +202,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['buy'])) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['bulk'])) {
     try {
-        // Prepare and execute the SQL statement
-        $stmt = $pdo->prepare("
-            INSERT INTO bulk_shopping_cart (product_id, product, customer_id, firstname, lastname, unit_price, roll_price) 
+        $stmt = $pdo->prepare("INSERT INTO bulk_shopping_cart (product_id, product, customer_id, firstname, lastname, unit_price, roll_price) 
             VALUES (:product_id, :product_name, :customer_id, :firstname, :lastname, :price, :roll_price)
         ");
         $stmt->execute([
