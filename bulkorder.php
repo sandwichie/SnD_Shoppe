@@ -65,16 +65,15 @@ $address = $profile_data['address'] . ', ' . $profile_data['subdivision'] . ', '
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
     // Get payment, delivery details, and item quantities
-     // Get payment, delivery details, and item quantities
-     $paymentMethod = $_POST['payment_option'] ?? null;  // Corrected to 'payment_option'
-     $deliveryDate = $_POST['delivery_date'] ?? null;    // Corrected to 'delivery_date'
-     $deliveryMethod = $_POST['delivery_method'] ?? null; // Corrected to 'delivery_method'
+    $paymentMethod = $_POST['payment_option'] ?? null;  // Corrected to 'payment_option'
+    $deliveryDate = $_POST['delivery_date'] ?? null;    // Corrected to 'delivery_date'
+    $deliveryMethod = $_POST['delivery_method'] ?? null; // Corrected to 'delivery_method'
     $yards = $_POST['yards'] ?? [];
     $rolls = $_POST['rolls'] ?? [];
     $colorOptions = $_POST['color_option'] ?? [];
 
-     // Ensure the required fields are provided
-     if (!$paymentMethod || !$deliveryDate || !$deliveryMethod) {
+    // Ensure the required fields are provided
+    if (!$paymentMethod || !$deliveryDate || !$deliveryMethod) {
         echo "Please select all required fields.";
         exit;
     }
@@ -119,9 +118,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
             echo "Failed to save changes for Product ID $productId. Please try again.";
         }
     }
-    header("Location: cart.php");
-    echo "Bulk shopping cart updated successfully.";
 
+    // Redirect to the same page to clear the display of items
+    header("Location: cart.php");
     exit;
 }
 
@@ -892,8 +891,9 @@ h1, h3 {
             document.getElementById('yards-value-<?php echo $bulk['product_id']; ?>').addEventListener('input', updateTotals);
             document.getElementById('rolls-value-<?php echo $bulk['product_id']; ?>').addEventListener('input', updateTotals);
         <?php endforeach; ?>
-    </script>
 
+    </script>
+    
     <script src="script.js"></script>
 </body>
 </html>
