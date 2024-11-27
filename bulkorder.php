@@ -63,6 +63,10 @@ $profile_data = $stmt->fetch(PDO::FETCH_ASSOC);
 $customer_name = $profile_data['firstname'] . ' ' . $profile_data['lastname'];
 $address = $profile_data['address'] . ', ' . $profile_data['subdivision'] . ', ' . $profile_data['barangay'] . ', ' . $profile_data['city'] . ', ' . $profile_data['place'];
 
+$stmt = $pdo->prepare('SELECT product_name, price, quantity, product_descript, roll_price FROM products WHERE product_id = :product_id');
+$stmt->execute(['product_id' => $product_id]);
+$product = $stmt->fetch(PDO::FETCH_ASSOC);
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
     // Get payment, delivery details, and item quantities
     $paymentMethod = $_POST['payment_option'] ?? null;  // Corrected to 'payment_option'
@@ -85,37 +89,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
         exit;
     }
 
-    // Iterate through the yards array to update each product
-    foreach ($yards as $productId => $yardsValue) {
-        $yardsQuantity = (int)$yardsValue;  
-        $rollsQuantity = isset($rolls[$productId]) ? (int)$rolls[$productId] : 0;
-        $color = $colorOptions[$productId] ?? '';
+    // Initialize an array to hold the subtotals for each bulk_cart_id
+    $totals = [];
 
+    // Iterate through the yards array to update each product
+    foreach ($yards as $bulkCartId => $yardsValue) {
+        $yardsQuantity = (int)$yardsValue;
+        $rollsQuantity = isset($rolls[$bulkCartId]) ? (int)$rolls[$bulkCartId] : 0;
+        $color = $colorOptions[$bulkCartId] ?? '';
+
+        // Assuming you have a price per yard in the database, let's fetch it
         try {
-            // Prepare and execute the update query
-            $stmt = $pdo->prepare("
-                UPDATE bulk_shopping_cart
-                SET 
-                    payment_method = :payment_method,
-                    delivery_date = :delivery_date,
-                    delivery_method = :delivery_method,
-                    yards = :yards,
-                    rolls = :rolls,
-                    color = :color
-                WHERE product_id = :product_id
-            ");
-            $stmt->execute([
-                ':payment_method' => $paymentMethod,
-                ':delivery_date' => $deliveryDate,
-                ':delivery_method' => $deliveryMethod,
-                ':yards' => $yardsQuantity,
-                ':rolls' => $rollsQuantity,
-                ':color' => $color,
-                ':product_id' => $productId
-            ]);
+            $stmt = $pdo->prepare('SELECT bulk_cart_id, product_id, product, unit_price, roll_price FROM bulk_shopping_cart WHERE bulk_cart_id = :bulk_cart_id');
+            $stmt->execute([':bulk_cart_id' => $bulkCartId]);
+            $bulk_item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($bulk_item) {
+                // Calculate the subtotal for this item
+                $yardSubtotal = $bulk_item['unit_price'] * $yardsQuantity;
+                $rollSubtotal = $bulk_item['roll_price'] * $rollsQuantity;
+                $itemSubtotal = $yardSubtotal + $rollSubtotal;
+
+                // Add the item subtotal to the total for this bulk_cart_id
+                if (!isset($totals[$bulkCartId])) {
+                    $totals[$bulkCartId] = 0;
+                }
+                $totals[$bulkCartId] += $itemSubtotal;
+
+                // Prepare and execute the update query using bulk_cart_id
+                $stmt = $pdo->prepare("
+                    UPDATE bulk_shopping_cart
+                    SET 
+                        payment_method = :payment_method,
+                        delivery_date = :delivery_date,
+                        delivery_method = :delivery_method,
+                        yards = :yards,
+                        rolls = :rolls,
+                        color = :color,
+                        item_subtotal = :item_subtotal
+                    WHERE bulk_cart_id = :bulk_cart_id
+                ");
+                $stmt->execute([
+                    ':payment_method' => $paymentMethod,
+                    ':delivery_date' => $deliveryDate,
+                    ':delivery_method' => $deliveryMethod,
+                    ':yards' => $yardsQuantity,
+                    ':rolls' => $rollsQuantity,
+                    ':color' => $color,
+                    ':item_subtotal' => $itemSubtotal,
+                    ':bulk_cart_id' => $bulkCartId
+                ]);
+            }
         } catch (PDOException $e) {
             error_log("Error updating bulk shopping cart: " . $e->getMessage());
-            echo "Failed to save changes for Product ID $productId. Please try again.";
+            echo "Failed to save changes for Bulk Cart ID $bulkCartId. Please try again.";
+        }
+    }
+
+    foreach ($totals as $bulkCartId => $total) {
+        try {
+            $stmt = $pdo->prepare("
+                UPDATE bulk_shopping_cart
+                SET item_subtotal = :total
+                WHERE bulk_cart_id = :bulk_cart_id
+            ");
+            $stmt->execute([
+                ':total' => $total,
+                ':bulk_cart_id' => $bulkCartId
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error updating total for bulk_cart_id $bulkCartId: " . $e->getMessage());
+            echo "Failed to save total for Bulk Cart ID $bulkCartId. Please try again.";
         }
     }
 
@@ -726,11 +770,11 @@ h1, h3 {
                 <div class="col-lg-6 col-md-12">
                     <?php foreach ($bulk_items as $bulk): ?>
                         <div class="product-details border rounded shadow-sm p-3 d-flex flex-column" style="margin-bottom: 15px;">
-                            <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?></h2>
+                            <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?><span> <?php echo htmlspecialchars($bulk['bulk_cart_id']); ?></span></h2>
 
                             <p class="mb-3">
                                 <span class="font-weight-bold text-muted">PRICE: </span>
-                                <span class="price text-success" id="price-per-yard-<?php echo $bulk['product_id']; ?>">
+                                <span class="price text-success" id="price-per-yard-<?php echo $bulk['bulk_cart_id']; ?>">
                                     <?php echo htmlspecialchars($bulk['unit_price']); ?>
                                 </span>
                                 <span class="text-muted">PER YARD</span><br />
@@ -742,9 +786,9 @@ h1, h3 {
                                 <div class="quantity-container d-flex align-items-center">
                                     <input
                                         type="number"
-                                        id="yards-value-<?php echo $bulk['product_id']; ?>"
+                                        id="yards-value-<?php echo $bulk['bulk_cart_id']; ?>"
                                         class="form-control form-control-sm text-center"
-                                        name="yards[<?php echo $bulk['product_id']; ?>]"
+                                        name="yards[<?php echo $bulk['bulk_cart_id']; ?>]"
                                         value="30"
                                         max="50"
                                         min="0"
@@ -756,7 +800,7 @@ h1, h3 {
 
                             <p class="mb-3">
                                 <span class="font-weight-bold text-muted">PRICE: </span>
-                                <span class="price text-success" id="price-per-roll-<?php echo $bulk['product_id']; ?>">
+                                <span class="price text-success" id="price-per-roll-<?php echo $bulk['bulk_cart_id']; ?>">
                                     <?php echo htmlspecialchars($bulk['roll_price']); ?>
                                 </span>
                                 <span class="text-muted">PER ROLL</span><br />
@@ -768,9 +812,9 @@ h1, h3 {
                                 <div class="quantity-container d-flex align-items-center">
                                     <input
                                         type="number"
-                                        id="rolls-value-<?php echo $bulk['product_id']; ?>"
+                                        id="rolls-value-<?php echo $bulk['bulk_cart_id']; ?>"
                                         class="form-control form-control-sm text-center"
-                                        name="rolls[<?php echo $bulk['product_id']; ?>]"
+                                        name="rolls[<?php echo $bulk['bulk_cart_id']; ?>]"
                                         value="0"
                                         max="10"
                                         min="0"
@@ -783,14 +827,14 @@ h1, h3 {
                             <!-- Subtotal for the product -->
                             <p>
                                 <strong>SUBTOTAL:</strong>
-                                <span id="subtotal-<?php echo $bulk['product_id']; ?>" class="price text-success">P 0.00</span>
+                                <span id="subtotal-<?php echo $bulk['bulk_cart_id']; ?>" class="price text-success">P 0.00</span>
                             </p>
 
                             <!-- Color Selector -->
                             <div class="selector mt-3">
                                 <label class="form-label">Available Colors:</label>
                                 <div class="color-options d-flex flex-wrap">
-                                    <select class="form-select shadow-sm" name="color_option[<?php echo $bulk['product_id']; ?>]">
+                                    <select class="form-select shadow-sm" name="color_option[<?php echo $bulk['bulk_cart_id']; ?>]">
                                         <?php if (!empty($bulk_colors[$bulk['product_id']])): ?>
                                         <?php foreach ($bulk_colors[$bulk['product_id']] as $color): ?>
                                             <option value="<?php echo htmlspecialchars($color['color_name']); ?>"><?php echo htmlspecialchars($color['color_name']); ?></option>
