@@ -12,5 +12,6 @@
 ------> [product.php] - bulk order button functionality\
 11/26 > [bulkorder.php] - display of item added and db connection\
 ------> [bulkorder.php] - can't dynamically diplay the item subtotal and grand total :< \
-11/27 > [bulkorder.php] - proper form handling when order is requested (can order same product w/ different color variations)\
+------> [bulkorder.php] - started form handling order request but error on order request of same product w/ different color variation :< \
+11/27 > [bulkorder.php] - proper form handling of order request (can order same product w/ different color variations)\
 ------> [bulkorder.php] - subtotal per bulk_cart_id can be calculated\
