@@ -15,3 +15,4 @@
 ------> [bulkorder.php] - started form handling order request but error on order request of same product w/ different color variation :< \
 11/27 > [bulkorder.php] - proper form handling of order request (can order same product w/ different color variations)\
 ------> [bulkorder.php] - subtotal per bulk_cart_id can be calculated\
+------> [cart.php] - order summary update on shopping cart tab & bulk cart section display\
