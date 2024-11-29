@@ -83,6 +83,7 @@ body {
     background: url(Assets/bgLogin.png) rgba(0, 0, 0, 0.3);
     background-blend-mode: multiply;
     background-position: center;
+    background-repeat: repeat;
     background-size: cover;
     min-height: 100vh; 
     overflow-y: auto; 
