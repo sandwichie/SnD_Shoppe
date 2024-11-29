@@ -63,10 +63,6 @@ $profile_data = $stmt->fetch(PDO::FETCH_ASSOC);
 $customer_name = $profile_data['firstname'] . ' ' . $profile_data['lastname'];
 $address = $profile_data['address'] . ', ' . $profile_data['subdivision'] . ', ' . $profile_data['barangay'] . ', ' . $profile_data['city'] . ', ' . $profile_data['place'];
 
-$stmt = $pdo->prepare('SELECT product_name, price, quantity, product_descript, roll_price FROM products WHERE product_id = :product_id');
-$stmt->execute(['product_id' => $product_id]);
-$product = $stmt->fetch(PDO::FETCH_ASSOC);
-
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
     // Get payment, delivery details, and item quantities
     $paymentMethod = $_POST['payment_option'] ?? null;  // Corrected to 'payment_option'
@@ -163,8 +159,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_bulk'])) {
         }
     }
 
-    // Redirect to the same page to clear the display of items
-    header("Location: cart.php");
+    // Redirect to cart.php bulk-cart section
+    header("Location: cart.php#bulk-cart");
     exit;
 }
 
@@ -735,9 +731,9 @@ h1, h3 {
                     <div class="col-md-6">
                         <label class="form-label">PAYMENT METHOD:</label>
                         <select class="form-select shadow-sm" id="payment-opt" name="payment_option">
-                            <option selected value="COD">Cash on Delivery (COD)</option>
-                            <option value="GCash">GCash</option>
+                            <option selected value="GCash">GCash</option>
                             <option value="Maya">Maya</option>
+                            <option value="COD">Cash on Delivery (COD)</option>
                         </select>
                     </div>
 
@@ -753,11 +749,11 @@ h1, h3 {
                     <label class="form-label">DELIVERY METHOD:</label>
                         <div class="d-flex flex-wrap justify-content-around mt-2">
                         <div class="form-check">
-                            <input type="radio" id="pickup" name="delivery_method" value="PickUp" class="form-check-input" checked />
+                            <input type="radio" id="pickup" name="delivery_method" value="Pick Up" class="form-check-input" checked />
                             <label for="pickup" class="form-check-label">PICK UP IN STORE</label>
                         </div>
                         <div class="form-check">
-                            <input type="radio" id="contact" name="delivery_method" value="Contact" class="form-check-input" />
+                            <input type="radio" id="contact" name="delivery_method" value="Contact Seller" class="form-check-input" />
                             <label for="contact" class="form-check-label">CONTACT SELLER (Preferred option for COD payment method)</label>
                         </div>
                         </div>
@@ -770,7 +766,11 @@ h1, h3 {
                 <div class="col-lg-6 col-md-12">
                     <?php foreach ($bulk_items as $bulk): ?>
                         <div class="product-details border rounded shadow-sm p-3 d-flex flex-column" style="margin-bottom: 15px;">
-                            <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?><span> <?php echo htmlspecialchars($bulk['bulk_cart_id']); ?></span></h2>
+                            <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?></h2>
+
+                            <p>
+                                <h6 style="font-size: 15px; margin-top: -23px; color:#1e1e1e; text-align: justify">Type in <span style="font-weight: bold; font-size: 20px; color: #198754;">'0'</span> in the number inputs to not select per YARD or per ROLL.</h4>
+                            </p>
 
                             <p class="mb-3">
                                 <span class="font-weight-bold text-muted">PRICE: </span>
@@ -878,9 +878,10 @@ h1, h3 {
                             </p>
 
                             <div class="buttons mt-4">
-                            <button class="order-btn btn btn-primary btn-lg w-100 mb-3" type="submit" name="request_bulk">START ORDER REQUEST</button>
-                            <button class="contact-btn btn btn-outline-primary btn-lg w-100" type="button">CONTACT SELLER</button>
-                            <button class="home-btn btn btn-outline-primary btn-lg w-100" type="button" onclick="window.location.href='homepage.php';">RETURN TO HOMEPAGE TO ORDER MORE!</button>
+                                <h6 style="font-size: 15px; margin-top: -20px; color:#1e1e1e; padding: 5px; text-align: justify">Please make sure all your details and selected items are correct before proceeding with the request to avoid delays or issues!</h6>
+                                <button class="order-btn btn btn-primary btn-lg w-100 mb-3" type="submit" name="request_bulk">START ORDER REQUEST</button>
+                                <button class="contact-btn btn btn-outline-primary btn-lg w-100" type="button">CONTACT SELLER</button>
+                                <button class="home-btn btn btn-outline-primary btn-lg w-100" type="button" onclick="window.location.href='homepage.php';">RETURN TO HOMEPAGE TO ORDER MORE!</button>
                             </div>
                         </div>
                     </div>
