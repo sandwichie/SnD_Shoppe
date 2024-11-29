@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['proof'])) {
 
         // Handle payment details
         if (isset($_FILES['proof']) && $_FILES['proof']['error'] === UPLOAD_ERR_OK) {
-            $target_dir = "";
+            $target_dir = "uploads/";
             $file_name = basename($_FILES["proof"]["name"]);
             $target_file = $target_dir . uniqid() . "_" . $file_name;
             $file_type = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
@@ -123,24 +123,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['proof'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     try {
         $pdo->beginTransaction();
-       
-        // Insert order details into order_details table
-        
+
+        // Insert into bulk_order_details table
         $stmt = $pdo->prepare("
-            INSERT INTO bulk_order_details (bulk_order_id, customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
-            VALUES (:order_num, :customer_id, :sub_total, :delivery_option, :delivery_date, :payment)
+            INSERT INTO bulk_order_details (customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
+            VALUES (:customer_id, :sub_total, :delivery_option, :delivery_date, :payment)
         ");
         $stmt->execute([
-            ':order_num' => $bulk_order_id,
             ':customer_id' => $user_id,
-            ':sub_total' => $bulk_items['item_subtotal'],
-            ':delivery_option' => $bulk_items['delivery_method'],
-            ':delivery_option' => $bulk_items['delivery_date'],
+            ':sub_total' => $bulkGrandTotal,
+            ':delivery_option' => $selected_option,
+            ':delivery_date' => date('Y-m-d'), // Use a valid date or input value
             ':payment' => $payment_id ?? null
         ]);
-        
+
+        // Get the auto-incremented bulk_order_id
         $bulk_order_id = $pdo->lastInsertId();
-        // Insert each cart item into order_items table
+
+        // Insert each cart item into bulk_order_items table
         foreach ($bulk_items as $product) {
             $stmt = $pdo->prepare("
                 INSERT INTO bulk_order_items (bulk_order_id, product_id, product_name, color, yards, unit_price, rolls, roll_price) 
@@ -157,18 +157,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                 ':roll_price' => $product['roll_price'],
             ]);
         }
-        
-        $pdo->commit();
+
         // Optionally clear the shopping cart after placing the order
-    $stmt = $pdo->prepare("DELETE FROM bulk_shopping_cart WHERE customer_id = :customer_id");
-    $stmt->execute([':customer_id' => $user_id]);
+        $stmt = $pdo->prepare("DELETE FROM bulk_shopping_cart WHERE customer_id = :customer_id");
+        $stmt->execute([':customer_id' => $user_id]);
+
+        $pdo->commit();
 
         echo "<script>
-    alert('Order placed successfully!');
-    window.location.href = 'mypurchase.php';
-    </script>";
-
-
+            alert('Order placed successfully!');
+            window.location.href = 'mypurchase.php';
+        </script>";
     } catch (Exception $e) {
         $pdo->rollBack();
         echo '<div id="message" class="alert alert-danger">' . htmlspecialchars($e->getMessage()) . '</div>';
