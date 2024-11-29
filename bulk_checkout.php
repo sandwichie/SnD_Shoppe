@@ -25,6 +25,10 @@ $stmt = $pdo->prepare('SELECT bulk_cart_id, product_id, product, unit_price, rol
 $stmt->execute(['user_id' => $user_id]);
 $bulk_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$stmt = $pdo->prepare('SELECT delivery_method, delivery_date, payment_method FROM bulk_shopping_cart WHERE customer_id = :user_id LIMIT 1');
+$stmt->execute(['user_id' => $user_id]);
+$bulk_display = $stmt->fetch(PDO::FETCH_ASSOC);
+
 $profile_data = [];
 $stmt = $pdo->prepare('SELECT firstname, lastname, email, phone, gender, birthdate, address, subdivision,
 barangay, postal, city, place FROM users_credentials WHERE id = ?');
@@ -43,36 +47,6 @@ $stmt = $pdo->prepare('SELECT place FROM users_credentials WHERE id = :user_id')
 $stmt->execute(['user_id' => $user_id]);
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 $place = $row['place'] ?? '';
-
-// Shipping rates
-$rates = [
-    'jnt' => [
-        'Metro Manila' => 40,
-        'Luzon' => 60,
-        'Visayas' => 80,
-        'Mindanao' => 105
-    ],
-    'ninja-van' => [
-        'Metro Manila' => 60,
-        'Luzon' => 90,
-        'Visayas' => 95,
-        'Mindanao' => 100
-    ],
-    'lbc' => [
-        'Metro Manila' => 44,
-        'Luzon' => 64,
-        'Visayas' => 74,
-        'Mindanao' => 74
-    ]
-];
-
-// Handle shipping option submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delivery'])) {
-    $selected_option = $_POST['delivery'];
-    $_SESSION['selected_option'] = $selected_option; // Store it in session for persistence
-} else {
-    $selected_option = $_SESSION['selected_option'] ?? 'jnt';
-}
 
 $payment_id = null;
 
@@ -125,18 +99,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $pdo->beginTransaction();
 
         // Insert into bulk_order_details table
-        $stmt = $pdo->prepare("
-            INSERT INTO bulk_order_details (customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
-            VALUES (:customer_id, :sub_total, :delivery_option, :delivery_date, :payment)
-        ");
-        $stmt->execute([
-            ':customer_id' => $user_id,
-            ':sub_total' => $bulkGrandTotal,
-            ':delivery_option' => $selected_option,
-            ':delivery_date' => date('Y-m-d'), // Use a valid date or input value
-            ':payment' => $payment_id ?? null
-        ]);
+        foreach ($bulk_items as $product) {
+            $stmt = $pdo->prepare("
+                INSERT INTO bulk_order_details (customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
+                VALUES (:customer_id, :sub_total, :delivery_option, :delivery_date, :payment)
+            ");
+            $stmt->execute([
+                ':customer_id' => $user_id,
+                ':sub_total' => $product['item_subtotal'],
+                ':delivery_option' => $product['delivery_method'],
+                ':delivery_date' => $product['delivery_date'], // Use a valid date or input value
+                ':payment' => $payment_id ?? null
+            ]);
+        }
+        
+        // Get the auto-incremented bulk_order_id
+        $bulk_order_id = $pdo->lastInsertId();
 
+        // Insert each cart item into bulk_order_items table
+        foreach ($bulk_items as $product) {
+            $stmt = $pdo->prepare("
+                INSERT INTO bulk_order_items (bulk_order_id, product_id, product_name, color, yards, unit_price, rolls, roll_price) 
+                VALUES (:order_num, :product_id, :product_name, :color, :yards, :unit_price, :rolls, :roll_price)
+            ");
+            $stmt->execute([
+                ':order_num' => $bulk_order_id,
+                ':product_id' => $product['product_id'],
+                ':product_name' => $product['product'],
+                ':color' => $product['color'],
+                ':yards' => $product['yards'],
+                ':unit_price' => $product['unit_price'],
+                ':rolls' => $product['rolls'],
+                ':roll_price' => $product['roll_price'],
+            ]);
+        }
+
+        // Optionally clear the shopping cart after placing the order
+        $stmt = $pdo->prepare("DELETE FROM bulk_shopping_cart WHERE customer_id = :customer_id");
+        $stmt->execute([':customer_id' => $user_id]);
+
+        $pdo->commit();
+
+        echo "<script>
+            alert('Order placed successfully!');
+            window.location.href = 'mypurchase.php';
+        </script>";
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo '<div id="message" class="alert alert-danger">' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cod_place_order'])) {
+    try {
+        $pdo->beginTransaction();
+        $payment_id = 11223344;
+
+        // Insert into bulk_order_details table
+        foreach ($bulk_items as $product) {
+            $stmt = $pdo->prepare("
+                INSERT INTO bulk_order_details (customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
+                VALUES (:customer_id, :sub_total, :delivery_option, :delivery_date, :payment_id)
+            ");
+            $stmt->execute([
+                ':customer_id' => $user_id,
+                ':sub_total' => $product['item_subtotal'],
+                ':delivery_option' => $product['delivery_method'],
+                ':delivery_date' => $product['delivery_date'], // Use a valid date or input value
+                ':payment_id' => $payment_id
+            ]);
+        }
+        
         // Get the auto-incremented bulk_order_id
         $bulk_order_id = $pdo->lastInsertId();
 
@@ -402,6 +436,12 @@ textarea.form-control {
     border-radius: 10px;
 }
 
+.btn-success button {
+    background-color: #157347;
+    border-radius: 10px;
+    width: 300px;
+}
+
 .btn-success:hover {
     background-color: #19583b;
 }
@@ -435,23 +475,25 @@ textarea.form-control {
 .center-message {
   padding: 100px;
   margin-bottom: 15px;
-    }
+}
 
 /* Checkout Form */
 form {
     background-color: #f1e8d9 ;
     padding: 20px;
     border-radius: 5px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 form input, form textarea {
     font-size: 16px;
+    padding: 20px;
 }
 
 form .btn-success {
     font-size: 18px;
+    box-shadow: none;
 }
+
 
 /* Small Adjustments for Mobile */
 @media (max-width: 767px) {
@@ -555,31 +597,121 @@ form .btn-success {
                         . ' ' . $profile_data['postal'] . ' ' . $profile_data['city'] . ' ' . $profile_data['place']); ?> 
                     </p>
                 </div>
-               
-                 <!-- Shipping Option -->
-                 <h4 class="mb-4">DELIVERY OPTION</h4>
-                    <div class="mb-3">
-                        <label for="shipping-option" class="form-label">Select Shipping Option</label>
-                        <form method="POST" action="">
-                            <select class="form-select" name="delivery" id="shipping-option" required onchange="this.form.submit()">
-                                <option value="jnt" <?php echo ($selected_option === 'jnt') ? 'selected' : ''; ?>>J&T Express</option>
-                                <option value="ninja-van" <?php echo ($selected_option === 'ninja-van') ? 'selected' : ''; ?>>Ninja Van</option>
-                                <option value="lbc" <?php echo ($selected_option === 'lbc') ? 'selected' : ''; ?>>LBC</option>
-                            </select>
-                        </form>
-</div>             
-                  <!--payment option-->
-                    <h4 class="mb-4">Select Payment Option To Place Order</h4>
-                    <form method="POST" action="">
-                    <div class="mb-3">
-                        <label for="payment-option" class="form-label"
-                          >Payment Method</label>
-                        <select class="form-select" name="method" id="payment-option" required>
-                          <option value="" >Select a payment method</option>
-                          <option value="Gcash">GCash</option>
-                          <option value="Maya">Maya</option>
-                        </select>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Delivery Method</label>
+                    <?php if (!empty($bulk_items)): ?>
+                        <p class="form-control-plaintext ms-3">
+                            <?php echo htmlspecialchars($bulk_items[0]['delivery_method']); ?>
+                        </p>
+                    <?php else: ?>
+                        <p>No delivery method found.</p>
+                    <?php endif; ?>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Preferred Delivery Date</label>
+                    <?php if (!empty($bulk_display)): ?>
+                        <p class="form-control-plaintext ms-3">
+                            <?php 
+                            // Convert the delivery_date to the desired format (Month Day, Year)
+                            $formatted_date = date("F j, Y", strtotime($bulk_display['delivery_date']));
+                            echo htmlspecialchars($formatted_date);
+                            ?>
+                        </p>
+                    <?php else: ?>
+                        <p>No delivery date found.</p>
+                    <?php endif; ?>
+                </div>
+                <div class="mb-3">
+                <label class="form-label fw-bold">Selected Payment Method from Bulk Order Request: 
+                    <p class="form-control-plaintext ms-3" style="color: #157347;"><?php echo htmlspecialchars($bulk_items[0]['payment_method']); ?></p>
+                </label>   
+                </div>
+
+            <?php
+                $payment_method = htmlspecialchars($bulk_items[0]['payment_method']);
+                
+                // If the selected payment method is GCash or Maya, show the respective form
+                if ($payment_method == 'GCash') {
+            ?>
+                    <!-- GCash Payment Form -->
+                    <form id="gcash-form" action="" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
+                        <input type="hidden" name="customer_name" value="<?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname']); ?>">
+                        <input type="hidden" name="method" value="Gcash">
+                        <div class="mb-3 text-center">
+                            <label for="gcash-qr-code" class="form-label">GCash Payment Verification</label>
+                            <div id="gcash-qr-code" class="qr-code-container">
+                                <img src="images/gcashqr.jpg" alt="GCash QR Code" class="qr-code-image" width="100%" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="acc_name" class="form-label">Account Name</label>
+                            <input type="text" class="form-control" name="acc_name" id="acc_name" placeholder="Enter GCash Account Name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="number" class="form-label">Mobile Number</label>
+                            <input type="text" class="form-control" name="number" id="number" maxlength="11" placeholder="e.g 09xxxxxxxxx" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ref_num" class="form-label">Reference Number</label>
+                            <input type="text" class="form-control" name="ref_num" id="ref_num" placeholder="Enter GCash Reference Number" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="proof" class="form-label">Upload Proof of Payment</label>
+                            <input type="file" class="form-control" name="proof" id="proof" accept="image/*" required>
+                        </div>
+
+                        <button type="submit" name="place_order" class="btn btn-success w-100">Place Order</button>
+                    </form>
+
+            <?php
+                } elseif ($payment_method == 'Maya') {
+            ?>
+                    <!-- Maya Payment Form -->
+                    <form id="maya-form" action="" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
+                        <input type="hidden" name="customer_name" value="<?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname']); ?>">
+                        <input type="hidden" name="method" value="Maya">
+                        <div class="mb-3 text-center">
+                            <label for="maya-qr-code" class="form-label">Maya Payment Verification</label>
+                            <div id="maya-qr-code" class="qr-code-container">
+                                <img src="images/paymayaqr.jpg" alt="Maya QR Code" class="qr-code-image" width="100%" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="acc_name" class="form-label">Account Name</label>
+                            <input type="text" class="form-control" name="acc_name" id="acc_name" placeholder="Enter Maya Account Name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="number" class="form-label">Mobile Number</label>
+                            <input type="text" class="form-control" name="number" id="number" maxlength="11" placeholder="e.g 09xxxxxxxxx" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ref_num" class="form-label">Reference Number</label>
+                            <input type="text" class="form-control" name="ref_num" id="ref_num" placeholder="Enter Maya Reference Number" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="proof" class="form-label">Upload Proof of Payment</label>
+                            <input type="file" class="form-control" name="proof" id="proof" accept="image/*" required>
+                        </div>
+
+                        <button type="submit" name="place_order" class="btn btn-success w-100">Place Order</button>
+                    </form>
+
+            <?php
+                } else {
+                    echo "<p>Contact the Seller for the COD Payment and Delivery Methods. <a style='color: #dcaa2e;' href='sndLandingpage.php#aboutus'>Contact Details Here!</a></p>";
+                }
+            ?>
+
             </div>
         </div>
 
@@ -615,145 +747,26 @@ form .btn-success {
             <h5>Grand Total</h5>
             <h5 class="total-price fw-bold">₱<?php echo number_format($bulkGrandTotal, 2); ?></h5>
         </div>
-        <!--button class="btn btn-success btn-lg w-100 mt-4" name="place_order">Place Order</button--> <!--inalis para isahang save na lang sa payment-->
+        
+            <form method="POST" action="">
+                <?php if ($payment_method == 'COD') { ?>
+                    <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
+                    <input type="hidden" name="customer_name" value="<?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname']); ?>">
+                    <input type="hidden" name="method" value="COD">
+                    <button class="btn btn-success btn-lg w-100 mt-4" name="cod_place_order">Place Order</button--> <!--inalis para isahang save na lang sa payment-->
+                <?php
+                    } else {
+                        echo "<p>Answer the GCash Payment Verification Form.</p>";
+                    }
+                ?>
+            </form>            
+
         <button type="button" class="btn return-button w-100 mt-3" onclick="window.location.href='cart.php'">Back to Cart</button>
         </form>
     </div>
 </div>
 
-<!-- GCash Modal -->
-<div
-      class="modal fade"
-      id="gcashModal"
-      tabindex="-1"
-      aria-labelledby="gcashModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="gcashModalLabel">
-              GCash Payment Verification
-            </h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-          <form id="gcash-form" action="" method="POST" enctype="multipart/form-data">
-          <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
-          <input type="hidden" name="customer_name" value="<?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname']); ?>">
-          <input type="hidden" name="method" id="method" value="">
-              <div class="mb-3 text-center">
-                <label for="gcash-qr-code" class="form-label">QR Code</label>
-                <div id="gcash-qr-code" class="qr-code-container">
-                  <img
-                    src="images\gcashqr.jpg"
-                    alt="GCash QR Code"
-                    class="qr-code-image"
-                    width="100%"
-                  />
-                </div>
-              </div>
 
-              <div class="mb-3">
-                <label for="acc_name" class="form-label">Account Name</label>
-                <input type="text" class="form-control" name="acc_name" id="acc_name" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="number" class="form-label">Mobile Number</label>
-                <input type="text" class="form-control" name="number" id="number" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="ref_num" class="form-label">Reference Number</label>
-                <input type="text" class="form-control" name="ref_num" id="ref_num" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="proof" class="form-label">Upload Proof of Payment</label>
-                <input type="file" class="form-control" name="proof" id="proof" accept="image/*" required>
-              </div>
-
-              <button type="submit" name="place_order" class="btn btn-success w-100" onclick="setPaymentMethod('Gcash')">
-                Place Order
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Maya Modal -->
-    <div
-      class="modal fade"
-      id="mayaModal"
-      tabindex="-1"
-      aria-labelledby="mayaModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="mayaModalLabel">
-              Maya Payment Verification
-            </h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <form id="maya-form" action="" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
-          <input type="hidden" name="customer_name" value="<?php echo htmlspecialchars($profile_data['firstname'] . ' ' . $profile_data['lastname']); ?>">
-          <input type="hidden" name="method" id="method" value="">
-              <div class="mb-3 text-center">
-                <label for="maya-qr-code" class="form-label">QR Code</label>
-                <div id="maya-qr-code" class="qr-code-container">
-                  <img
-                    src="images\paymayaqr.jpg"
-                    alt="Maya QR Code"
-                    class="qr-code-image"
-                    width="100%"
-                  />
-                </div>
-              </div>
-
-              <div class="mb-3">
-                <label for="acc_name" class="form-label">Account Name</label>
-                <input type="text" class="form-control" name="acc_name" id="acc_name" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="number" class="form-label">Mobile Number</label>
-                <input type="text" class="form-control" name="number" id="number" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="ref_num" class="form-label">Reference Number</label>
-                <input type="text" class="form-control" name="ref_num" id="ref_num" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="proof" class="form-label">Upload Proof of Payment</label>
-                <input type="file" class="form-control" name="proof" id="proof" accept="image/*" required>
-              </div>
-
-              <button type="submit" name="place_order" class="btn btn-success w-100" onclick="setPaymentMethod('Maya')">
-                Place Order
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <script src="product.js"></script>
     <script>
