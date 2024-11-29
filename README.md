@@ -16,3 +16,7 @@
 11/27 > [bulkorder.php] - proper form handling of order request (can order same product w/ different color variations)\
 ------> [bulkorder.php] - subtotal per bulk_cart_id can be calculated\
 ------> [cart.php] - order summary update on shopping cart tab & bulk cart section display\
+11/28 > [bulk_checkout.php] - error in form submission\
+11/29 > [bulk_checkout.php] - form submission for payment method=GCash & Maya --> DONE\
+------> [bulk_checkout.php] - form submission for payment method=COD --> DONE\
+------> [bulk_checkout.php] - proper display of details\
