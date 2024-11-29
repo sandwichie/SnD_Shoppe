@@ -94,24 +94,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['proof'])) {
     }
 }
 
+// Assuming $bulk_display contains the delivery method and delivery date from the bulk cart
+$delivery_method = $bulk_display['delivery_method'] ?? ''; // Default to empty if not set
+$delivery_date = $bulk_display['delivery_date'] ?? ''; // Default to empty if not set
+
+// Ensure both delivery_method and delivery_date are not empty or null
+if (empty($delivery_method) || empty($delivery_date)) {
+    echo "<div class='alert alert-danger'>Error: Delivery details are missing. Please check your cart.</div>";
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     try {
         $pdo->beginTransaction();
 
         // Insert into bulk_order_details table
-        foreach ($bulk_items as $product) {
             $stmt = $pdo->prepare("
-                INSERT INTO bulk_order_details (customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
+                INSERT INTO bulk_order_details (customer_id, grand_total, delivery_method, delivery_date, payment_id) 
                 VALUES (:customer_id, :sub_total, :delivery_option, :delivery_date, :payment)
             ");
             $stmt->execute([
                 ':customer_id' => $user_id,
-                ':sub_total' => $product['item_subtotal'],
-                ':delivery_option' => $product['delivery_method'],
-                ':delivery_date' => $product['delivery_date'], // Use a valid date or input value
+                ':sub_total' => $bulkGrandTotal,
+                ':delivery_option' => $delivery_method, // Use the correct delivery method
+                ':delivery_date' => $delivery_date, // Use the correct delivery date
                 ':payment' => $payment_id ?? null
             ]);
-        }
         
         // Get the auto-incremented bulk_order_id
         $bulk_order_id = $pdo->lastInsertId();
@@ -154,22 +162,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cod_place_order'])) {
     try {
         $pdo->beginTransaction();
-        $payment_id = 11223344;
+        $payment_id = 11220000; // Default payment_id for COD payment_method
 
-        // Insert into bulk_order_details table
-        foreach ($bulk_items as $product) {
+            // Insert into bulk_order_details table
             $stmt = $pdo->prepare("
-                INSERT INTO bulk_order_details (customer_id, item_subtotal, delivery_method, delivery_date, payment_id) 
+                INSERT INTO bulk_order_details (customer_id, grand_total, delivery_method, delivery_date, payment_id) 
                 VALUES (:customer_id, :sub_total, :delivery_option, :delivery_date, :payment_id)
             ");
             $stmt->execute([
                 ':customer_id' => $user_id,
-                ':sub_total' => $product['item_subtotal'],
-                ':delivery_option' => $product['delivery_method'],
-                ':delivery_date' => $product['delivery_date'], // Use a valid date or input value
+                ':sub_total' => $bulkGrandTotal,
+                ':delivery_option' => $delivery_method, // Use the correct delivery method
+                ':delivery_date' => $delivery_date, // Use the correct delivery date
                 ':payment_id' => $payment_id
-            ]);
-        }
+            ]); 
         
         // Get the auto-incremented bulk_order_id
         $bulk_order_id = $pdo->lastInsertId();
