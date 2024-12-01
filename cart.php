@@ -265,11 +265,25 @@ h1 {
     color: #ffffff; 
 }
 
+.table-light {
+    border-collapse: separate;
+    border-spacing: 0 0.4rem; 
+    background-color: transparent;
+    border: #d9b65d;
+}
+
+.table thead th {
+    font-size: 0.95rem;
+    background-color: #d9b65d;
+    border: none;
+    color: white;
+}
+
 .nav-tabs .nav-item button {
-    background-color: white; /* Light background on hover */
-    color: #d9b65d; /* Matches the hover theme */
-    border-color: #d9b65d; /* Adds an underline when hovered */
-    border-bottom: 2px solid transparent; /* Adds a subtle underline effect */
+    background-color: white; 
+    color: #d9b65d; 
+    border-color: #d9b65d; 
+    border-bottom: 2px solid transparent; 
     font-weight: 500;
     padding: 10px 20px;
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
@@ -283,10 +297,10 @@ h1 {
 
 .nav-tabs .nav-item button.active,
 .nav-tabs .nav-item button[aria-selected="true"] {
-    background-color: #d9b65d; /* Highlighted background for active tab */
-    color: #ffffff; /* White text for active tab */
-    border-color: #d9b65d; /* Underline matches active background */
-    border-radius: 5px 5px 0 0; /* Optional rounded edges */
+    background-color: #d9b65d; 
+    color: #ffffff; 
+    border-color: #d9b65d; 
+    border-radius: 5px 5px 0 0; 
 }
 
 .nav-tabs {
@@ -429,7 +443,7 @@ h1 {
                             <h5>Grand Total</h5>
                             <h5 class="total-price fw-bold">₱<?php echo number_format($subtotal, 2); ?></h5>
                         </div>
-                        <button class="btn btn-success btn-lg w-100 mt-4" onclick="window.location.href='checkout.php'">Proceed to Checkout</button>
+                        <button class="btn btn-success btn-lg w-100 mt-4" style="background-color: #d9b65d; border:none" onclick="window.location.href='checkout.php'">Proceed to Checkout</button>
                         <button class="btn return-button w-100 mt-3" onclick="window.location.href='homepage.php'">Return</button>
                     </div>
                 </div>
@@ -502,7 +516,7 @@ h1 {
                             <h5>Grand Total</h5>
                             <h5 class="total-price fw-bold">₱<?php echo number_format($bulkGrandTotal, 2); ?></h5>
                         </div>
-                        <button class="btn btn-success btn-lg w-100 mt-4" onclick="window.location.href='bulk_checkout.php'">Proceed to Checkout</button>
+                        <button class="btn btn-success btn-lg w-100 mt-4" style="background-color: #d9b65d; border:none" onclick="window.location.href='bulk_checkout.php'">Proceed to Checkout</button>
                         <button class="btn return-button w-100 mt-3" onclick="window.location.href='homepage.php'">Return</button>
                     </div>
                 </div>
