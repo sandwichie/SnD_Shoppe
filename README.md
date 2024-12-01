@@ -20,3 +20,5 @@
 11/29 > [bulk_checkout.php] - form submission for payment method=GCash & Maya --> DONE\
 ------> [bulk_checkout.php] - form submission for payment method=COD --> DONE\
 ------> [bulk_checkout.php] - proper display of details\
+------> [mypurchase.php] - proper display of details for bulk orders (no filtering)\
+12/01 > [mypurchase.php] - proper display of details for normal and bulk orders (w/ filtering)\
