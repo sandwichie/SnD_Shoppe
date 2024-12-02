@@ -187,9 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cod_place_order'])) {
                 ':product_name' => $product['product'],
                 ':color' => $product['color'],
                 ':yards' => $product['yards'],
-                ':unit_price' => $product['unit_price'],
-                ':rolls' => $product['rolls'],
-                ':roll_price' => $product['roll_price'],
+                ':rolls' => $product['rolls'], 
                 ':itemsubtotal' => $product['item_subtotal'],
             ]);
         }
