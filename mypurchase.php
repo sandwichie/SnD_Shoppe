@@ -31,6 +31,7 @@ $stmt = $pdo->prepare("
     SELECT 
         od.order_num, 
         od.total_price, 
+        od.sub_total, 
         od.status, 
         oi.product_name, 
         oi.color, 
@@ -49,7 +50,8 @@ $stmt = $pdo->prepare("
         od.bulk_order_id, 
         od.grand_total, 
         od.status, 
-        oi.product_name, 
+        oi.product_name,
+        oi.item_subtotal, 
         oi.color, 
         oi.yards, 
         oi.rolls, 
@@ -111,7 +113,6 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
       .table-hover tbody tr:hover {
         background-color: #f1f3f5;
       }
-
       .badge-to-pay {
         background-color: #dcaa2e;
         color: #fff; 
@@ -136,9 +137,24 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         background-color: #89a53c; 
         color: #fff;
       }
-
-
-
+      .nav-tabs .nav-link {
+        border-radius: 3; 
+        color: #1e1e1e; 
+      }
+      .nav-tabs .nav-link:hover {
+        color: #1e1e1e; 
+        background-color: #B5A888; 
+        border-bottom: 2px solid #007bff; 
+      }
+      .nav-tabs .nav-link.active {
+        color: #1e1e1e; 
+        text-decoration: underline;
+        background-color: #B5A888; 
+        border-bottom: 2px solid #007bff; 
+      }
+      .nav-tabs {
+        border-bottom: none;
+      }
     </style>
   </head>
   <body class="vh-100">
@@ -276,6 +292,7 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     role="tab"
                     aria-controls="all"
                     aria-selected="true"
+                    style="border: none; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 0.9rem;"
                   >
                     All
                   </button>
@@ -290,6 +307,7 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     role="tab"
                     aria-controls="to-pay"
                     aria-selected="false"
+                    style="border: none; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 0.9rem;"
                   >
                     To Pay
                   </button>
@@ -305,6 +323,7 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     role="tab"
                     aria-controls="to-ship"
                     aria-selected="false"
+                    style="border: none; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 0.9rem;"
                   >
                     To Ship
                   </button>
@@ -319,6 +338,7 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     role="tab"
                     aria-controls="to-receive"
                     aria-selected="false"
+                    style="border: none; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 0.9rem;"
                   >
                     To Receive
                   </button>
@@ -333,6 +353,7 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     role="tab"
                     aria-controls="completed"
                     aria-selected="false"
+                    style="border: none; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 0.9rem;"
                   >
                     Completed
                   </button>
@@ -347,6 +368,7 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     role="tab"
                     aria-controls="cancelled"
                     aria-selected="false"
+                    style="border: none; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 0.9rem;"
                   >
                     Cancelled
                   </button>
@@ -381,88 +403,216 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
               >
               <h3 class="mt-4">Order Status</h3>
               <div class="table-responsive">
-                <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark"">
-                        <tr>
-                            <th></th>
-                            <th>Order Number</th>
-                            <th>Product Name</th>
-                            <th>Color</th>
-                            <th>Quantity</th>
-                            <th>Grand Total</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($order_data as $details): ?>
-                            <tr>
-                                <!-- Product Image -->
-                                <td>
-                                    <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                                </td>
-                                <!-- Order Details -->
-                                <td><strong><?= htmlspecialchars($details['order_num']); ?></strong></td>
-                                <td><?= htmlspecialchars($details['product_name']); ?></td>
-                                <td><?= htmlspecialchars($details['color']); ?></td>
-                                <td><?= htmlspecialchars($details['quantity']); ?> Yards</td>
-                                <td class="text-success">₱<?= htmlspecialchars($details['total_price']); ?></td>
-                                <!-- Status with Badge -->
-                                <td>
+              <table class="table table-striped table-hover align-middle">
+                  <thead class="table-dark">
+                      <tr>
+                          <th></th>
+                          <th>Order Number</th>
+                          <th>Product</th>
+                          <th>Color</th>
+                          <th>Yards</th>
+                          <th>Item Subtotal</th>
+                          <th>Grand Total</th>
+                          <th>Status</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <?php 
+                      $grouped_orders = [];
+
+                      // Group orders by order number
+                      foreach ($order_data as $details) {
+                          $order_num = $details['order_num'];
+                          if (!isset($grouped_orders[$order_num])) {
+                              $grouped_orders[$order_num] = [
+                                  'order_num' => $details['order_num'],
+                                  'status' => $details['status'],
+                                  'sub_total' => $details['sub_total'],
+                                  'total_price' => $details['total_price'],
+                                  'items' => []
+                              ];
+                          }
+                          $grouped_orders[$order_num]['items'][] = $details;
+                      }
+
+                      // Display grouped orders
+                      foreach ($grouped_orders as $order): ?>
+                          <tr>
+                              <!-- Product Image and Details -->
+                              <td>
+                                  <?php 
+                                  $displayed_images = []; // Array to track displayed images
+                                  foreach ($order['items'] as $item): 
+                                      if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                          $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                  ?>
+                                      <div>
+                                        <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                      </div>
+                                  <?php 
+                                      endif;
+                                  endforeach; 
+                                  ?>
+                              </td>
+                              <!-- Order Number -->
+                              <td><strong><?= htmlspecialchars($order['order_num']); ?></strong></td>
+                              <!-- Product Details -->
+                              <td>
+                                  <?php foreach ($order['items'] as $item): ?>
+                                      <div>
+                                          <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                      </div>
+                                  <?php endforeach; ?>
+                              </td>
+                              <!-- Color -->
+                              <td>
+                                  <?php foreach ($order['items'] as $item): ?>
+                                      <div>
+                                          <?= htmlspecialchars($item['color']); ?>
+                                      </div>
+                                  <?php endforeach; ?>
+                              </td>
+                              <!-- Yards -->
+                              <td>
+                                  <?php foreach ($order['items'] as $item): ?>
+                                      <div>
+                                          <?= htmlspecialchars($item['quantity']); ?>
+                                      </div>
+                                  <?php endforeach; ?>
+                              </td>
+                              <!-- Subtotal -->
+                              <td style="color: #dcaa2e;">₱<?= htmlspecialchars($order['sub_total']); ?></td>
+                              <!-- Grand Total -->
+                              <td class="text-success"><strong>₱<?= htmlspecialchars($order['total_price']); ?></strong></td>
+                              <!-- Status -->
+                              <td>
                                   <span class="badge 
-                                      <?= $details['status'] === 'To Pay' ? 'badge-to-pay' : 
-                                        ($details['status'] === 'To Ship' ? 'badge-to-ship' : 
-                                        ($details['status'] === 'To Receive' ? 'badge-to-receive' : 
-                                        ($details['status'] === 'Completed' ? 'badge-completed' : 
-                                        ($details['status'] === 'Cancelled' ? 'badge-cancelled' : 'badge-other')))); ?>">
-                                      <?= htmlspecialchars($details['status']); ?>
+                                      <?= $order['status'] === 'To Pay' ? 'badge-to-pay' : 
+                                        ($order['status'] === 'To Ship' ? 'badge-to-ship' : 
+                                        ($order['status'] === 'To Receive' ? 'badge-to-receive' : 
+                                        ($order['status'] === 'Completed' ? 'badge-completed' : 
+                                        ($order['status'] === 'Cancelled' ? 'badge-cancelled' : 'badge-other')))); ?>">
+                                      <?= htmlspecialchars($order['status']); ?>
                                   </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                  </table>
+                              </td>
+                          </tr>
+                      <?php endforeach; ?>
+                  </tbody>
+              </table>
               </div>
               <h3 class="mt-4">Bulk Order Status</h3>
               <div class="table-responsive">
-                <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th></th>
-                            <th>Order Number</th>
-                            <th>Product Name</th>
-                            <th>Color</th>
-                            <th>Yards</th>
-                            <th>Rolls</th>
-                            <th>Grand Total</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($bulk_order_data as $details): ?>
-                            <tr>
-                                <td>
-                                    <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                                </td>
-                                <td><strong><?= htmlspecialchars($details['bulk_order_id']); ?></strong></td>
-                                <td><?= htmlspecialchars($details['product_name']); ?></td>
-                                <td><?= htmlspecialchars($details['color']); ?></td>
-                                <td><?= htmlspecialchars($details['yards']); ?></td>
-                                <td><?= htmlspecialchars($details['rolls']); ?></td>
-                                <td class="text-success">₱<?= htmlspecialchars($details['grand_total']); ?></td>
-                                <td>
-                                  <span class="badge 
-                                      <?= $details['status'] === 'To Pay' ? 'badge-to-pay' : 
-                                        ($details['status'] === 'To Ship' ? 'badge-to-ship' : 
-                                        ($details['status'] === 'To Receive' ? 'badge-to-receive' : 
-                                        ($details['status'] === 'Completed' ? 'badge-completed' : 
-                                        ($details['status'] === 'Cancelled' ? 'badge-cancelled' : 'badge-other')))); ?>">
-                                      <?= htmlspecialchars($details['status']); ?>
-                                  </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                  <table class="table table-striped table-hover align-middle">
+                      <thead class="table-dark">
+                          <tr>
+                              <th></th>
+                              <th>Order Number</th>
+                              <th>Product Details</th>
+                              <th>Color</th>
+                              <th>Yards</th>
+                              <th>Rolls</th>
+                              <th>Item Subtotal</th>
+                              <th>Grand Total</th>
+                              <th>Status</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <?php 
+                          $grouped_bulk_orders = [];
+
+                          // Group bulk orders by bulk_order_id
+                          foreach ($bulk_order_data as $details) {
+                              $bulk_order_id = $details['bulk_order_id'];
+                              if (!isset($grouped_bulk_orders[$bulk_order_id])) {
+                                  $grouped_bulk_orders[$bulk_order_id] = [
+                                      'bulk_order_id' => $details['bulk_order_id'],
+                                      'status' => $details['status'],
+                                      'grand_total' => $details['item_subtotal'],
+                                      'grand_total' => $details['grand_total'],
+                                      'items' => []
+                                  ];
+                              }
+                              $grouped_bulk_orders[$bulk_order_id]['items'][] = $details;
+                          }
+
+                          // Display grouped BULK ORDERS
+                          foreach ($grouped_bulk_orders as $order): ?>
+                              <tr>
+                                  <!-- Product Images -->
+                                  <td>
+                                      <?php 
+                                      $displayed_images = []; // Array to track displayed images
+                                      foreach ($order['items'] as $item): 
+                                          if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                              $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                      ?>
+                                          <div>
+                                              <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                          </div>
+                                      <?php 
+                                          endif;
+                                      endforeach; 
+                                      ?>
+                                  </td>
+                                  <!-- Order Number -->
+                                  <td><strong><?= htmlspecialchars($order['bulk_order_id']); ?></strong></td>
+                                  <!-- Product Details -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Colors -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['color']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Yards -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['yards']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Rolls -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['rolls']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Item Subtotal -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div style="color: #dcaa2e; font-weight: lighter;">
+                                              <strong>₱<?= htmlspecialchars($item['item_subtotal']); ?></strong> 
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Grand Total -->
+                                  <td class="text-success"><strong>₱<?= htmlspecialchars($order['grand_total']); ?></strong></td>
+                                  <!-- Status -->
+                                  <td>
+                                      <span class="badge 
+                                          <?= $order['status'] === 'To Pay' ? 'badge-to-pay' : 
+                                            ($order['status'] === 'To Ship' ? 'badge-to-ship' : 
+                                            ($order['status'] === 'To Receive' ? 'badge-to-receive' : 
+                                            ($order['status'] === 'Completed' ? 'badge-completed' : 
+                                            ($order['status'] === 'Cancelled' ? 'badge-cancelled' : 'badge-other')))); ?>">
+                                          <?= htmlspecialchars($order['status']); ?>
+                                      </span>
+                                  </td>
+                              </tr>
+                          <?php endforeach; ?>
+                      </tbody>
+                  </table>
               </div>
               </div>
 
@@ -474,82 +624,209 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 aria-labelledby="to-pay-tab">
                 <h3 class="mt-4">Order Status</h3>
                 <div class="table-responsive">
-                  <table class="table table-striped table-hover align-middle">
+                <table class="table table-striped table-hover align-middle">
                     <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Quantity</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
+                        <tr>
+                            <th></th>
+                            <th>Order Number</th>
+                            <th>Product</th>
+                            <th>Color</th>
+                            <th>Yards</th>
+                            <th>Item Subtotal</th>
+                            <th>Grand Total</th>
+                            <th>Status</th>
+                        </tr>
                     </thead>
                     <tbody>
-                      <?php foreach ($order_data as $details): ?>
-                        <?php if ($details['status'] === 'To Pay'): ?>
-                          <tr>
-                            <!-- Product Image -->
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <!-- Order Details -->
-                            <td><strong><?= htmlspecialchars($details['order_num']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['quantity']); ?> Yards</td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['total_price']); ?></td>
-                            <!-- Status with Badge -->
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
-                          </tr>
-                        <?php endif; ?>
+                        <?php 
+                        $grouped_orders = [];
+
+                        // Group orders by order number
+                        foreach ($order_data as $details) {
+                            $order_num = $details['order_num'];
+                            if (!isset($grouped_orders[$order_num])) {
+                                $grouped_orders[$order_num] = [
+                                    'order_num' => $details['order_num'],
+                                    'status' => $details['status'],
+                                    'sub_total' => $details['sub_total'],
+                                    'total_price' => $details['total_price'],
+                                    'items' => []
+                                ];
+                            }
+                            $grouped_orders[$order_num]['items'][] = $details;
+                        }
+
+                        // Display grouped orders
+                        foreach ($grouped_orders as $order): ?>
+                          <?php if ($order['status'] === 'To Pay'): ?>
+                            <tr>
+                                <!-- Product Image and Details -->
+                                <td>
+                                    <?php 
+                                    $displayed_images = []; // Array to track displayed images
+                                    foreach ($order['items'] as $item): 
+                                        if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                            $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                    ?>
+                                        <div>
+                                          <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                        </div>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    ?>
+                                </td>
+                                <!-- Order Number -->
+                                <td><strong><?= htmlspecialchars($order['order_num']); ?></strong></td>
+                                <!-- Product Details -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Color -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['color']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Yards -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['quantity']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Subtotal -->
+                                <td style="color: #dcaa2e;">₱<?= htmlspecialchars($order['sub_total']); ?></td>
+                                <!-- Grand Total -->
+                                <td class="text-success"><strong>₱<?= htmlspecialchars($order['total_price']); ?></strong></td>
+                                <!-- Status -->
+                                <td>
+                                    <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                        <?= htmlspecialchars($order['status']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </tbody>
-                  </table>
+                </table>
                 </div>
-
                 <h3 class="mt-4">Bulk Order Status</h3>
                 <div class="table-responsive">
                   <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Yards</th>
-                        <th>Rolls</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($bulk_order_data as $details): ?>
-                        <?php if ($details['status'] === 'To Pay'): ?>
+                      <thead class="table-dark">
                           <tr>
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <td><strong><?= htmlspecialchars($details['bulk_order_id']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['yards']); ?></td>
-                            <td><?= htmlspecialchars($details['rolls']); ?></td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['grand_total']); ?></td>
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
-                        </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                              <th></th>
+                              <th>Order Number</th>
+                              <th>Product Details</th>
+                              <th>Color</th>
+                              <th>Yards</th>
+                              <th>Rolls</th>
+                              <th>Item Subtotal</th>
+                              <th>Grand Total</th>
+                              <th>Status</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <?php 
+                          $grouped_bulk_orders = [];
+
+                          // Group bulk orders by bulk_order_id
+                          foreach ($bulk_order_data as $details) {
+                              $bulk_order_id = $details['bulk_order_id'];
+                              if (!isset($grouped_bulk_orders[$bulk_order_id])) {
+                                  $grouped_bulk_orders[$bulk_order_id] = [
+                                      'bulk_order_id' => $details['bulk_order_id'],
+                                      'status' => $details['status'],
+                                      'grand_total' => $details['item_subtotal'],
+                                      'grand_total' => $details['grand_total'],
+                                      'items' => []
+                                  ];
+                              }
+                              $grouped_bulk_orders[$bulk_order_id]['items'][] = $details;
+                          }
+
+                          // Display grouped BULK ORDERS
+                          foreach ($grouped_bulk_orders as $order): ?>
+                            <?php if ($order['status'] === 'To Pay'): ?>
+                              <tr>
+                                  <!-- Product Images -->
+                                  <td>
+                                      <?php 
+                                      $displayed_images = []; // Array to track displayed images
+                                      foreach ($order['items'] as $item): 
+                                          if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                              $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                      ?>
+                                          <div>
+                                              <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                          </div>
+                                      <?php 
+                                          endif;
+                                      endforeach; 
+                                      ?>
+                                  </td>
+                                  <!-- Order Number -->
+                                  <td><strong><?= htmlspecialchars($order['bulk_order_id']); ?></strong></td>
+                                  <!-- Product Details -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Colors -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['color']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Yards -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['yards']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Rolls -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['rolls']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Item Subtotal -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div style="color: #dcaa2e; font-weight: lighter;">
+                                              <strong>₱<?= htmlspecialchars($item['item_subtotal']); ?></strong> 
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Grand Total -->
+                                  <td class="text-success"><strong>₱<?= htmlspecialchars($order['grand_total']); ?></strong></td>
+                                  <!-- Status -->
+                                  <td>
+                                      <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                          <?= htmlspecialchars($order['status']); ?>
+                                      </span>
+                                  </td>
+                              </tr>
+                              <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
               </div>
@@ -562,83 +839,210 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 aria-labelledby="to-ship-tab"
               >
               <h3 class="mt-4">Order Status</h3>
-              <div class="table-responsive">
-                  <table class="table table-striped table-hover align-middle">
+                <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
                     <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Quantity</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
+                        <tr>
+                            <th></th>
+                            <th>Order Number</th>
+                            <th>Product</th>
+                            <th>Color</th>
+                            <th>Yards</th>
+                            <th>Item Subtotal</th>
+                            <th>Grand Total</th>
+                            <th>Status</th>
+                        </tr>
                     </thead>
                     <tbody>
-                      <?php foreach ($order_data as $details): ?>
-                        <?php if ($details['status'] === 'To Ship'): ?>
-                          <tr>
-                            <!-- Product Image -->
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <!-- Order Details -->
-                            <td><strong><?= htmlspecialchars($details['order_num']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['quantity']); ?> Yards</td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['total_price']); ?></td>
-                            <!-- Status with Badge -->
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
-                          </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                        <?php 
+                        $grouped_orders = [];
+
+                        // Group orders by order number
+                        foreach ($order_data as $details) {
+                            $order_num = $details['order_num'];
+                            if (!isset($grouped_orders[$order_num])) {
+                                $grouped_orders[$order_num] = [
+                                    'order_num' => $details['order_num'],
+                                    'status' => $details['status'],
+                                    'sub_total' => $details['sub_total'],
+                                    'total_price' => $details['total_price'],
+                                    'items' => []
+                                ];
+                            }
+                            $grouped_orders[$order_num]['items'][] = $details;
+                        }
+
+                        // Display grouped orders
+                        foreach ($grouped_orders as $order): ?>
+                          <?php if ($order['status'] === 'To Ship'): ?>
+                            <tr>
+                                <!-- Product Image and Details -->
+                                <td>
+                                    <?php 
+                                    $displayed_images = []; // Array to track displayed images
+                                    foreach ($order['items'] as $item): 
+                                        if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                            $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                    ?>
+                                        <div>
+                                          <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                        </div>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    ?>
+                                </td>
+                                <!-- Order Number -->
+                                <td><strong><?= htmlspecialchars($order['order_num']); ?></strong></td>
+                                <!-- Product Details -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Color -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['color']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Yards -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['quantity']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Subtotal -->
+                                <td style="color: #dcaa2e;">₱<?= htmlspecialchars($order['sub_total']); ?></td>
+                                <!-- Grand Total -->
+                                <td class="text-success"><strong>₱<?= htmlspecialchars($order['total_price']); ?></strong></td>
+                                <!-- Status -->
+                                <td>
+                                    <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                        <?= htmlspecialchars($order['status']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
-
                 <h3 class="mt-4">Bulk Order Status</h3>
                 <div class="table-responsive">
                   <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Yards</th>
-                        <th>Rolls</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($bulk_order_data as $details): ?>
-                        <?php if ($details['status'] === 'To Ship'): ?>
+                      <thead class="table-dark">
                           <tr>
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <td><strong><?= htmlspecialchars($details['bulk_order_id']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['yards']); ?></td>
-                            <td><?= htmlspecialchars($details['rolls']); ?></td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['grand_total']); ?></td>
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
+                              <th></th>
+                              <th>Order Number</th>
+                              <th>Product Details</th>
+                              <th>Color</th>
+                              <th>Yards</th>
+                              <th>Rolls</th>
+                              <th>Item Subtotal</th>
+                              <th>Grand Total</th>
+                              <th>Status</th>
                           </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                      </thead>
+                      <tbody>
+                          <?php 
+                          $grouped_bulk_orders = [];
+
+                          // Group bulk orders by bulk_order_id
+                          foreach ($bulk_order_data as $details) {
+                              $bulk_order_id = $details['bulk_order_id'];
+                              if (!isset($grouped_bulk_orders[$bulk_order_id])) {
+                                  $grouped_bulk_orders[$bulk_order_id] = [
+                                      'bulk_order_id' => $details['bulk_order_id'],
+                                      'status' => $details['status'],
+                                      'grand_total' => $details['item_subtotal'],
+                                      'grand_total' => $details['grand_total'],
+                                      'items' => []
+                                  ];
+                              }
+                              $grouped_bulk_orders[$bulk_order_id]['items'][] = $details;
+                          }
+
+                          // Display grouped BULK ORDERS
+                          foreach ($grouped_bulk_orders as $order): ?>
+                            <?php if ($order['status'] === 'To Ship'): ?>
+                              <tr>
+                                  <!-- Product Images -->
+                                  <td>
+                                      <?php 
+                                      $displayed_images = []; // Array to track displayed images
+                                      foreach ($order['items'] as $item): 
+                                          if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                              $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                      ?>
+                                          <div>
+                                              <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                          </div>
+                                      <?php 
+                                          endif;
+                                      endforeach; 
+                                      ?>
+                                  </td>
+                                  <!-- Order Number -->
+                                  <td><strong><?= htmlspecialchars($order['bulk_order_id']); ?></strong></td>
+                                  <!-- Product Details -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Colors -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['color']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Yards -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['yards']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Rolls -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['rolls']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Item Subtotal -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div style="color: #dcaa2e; font-weight: lighter;">
+                                              <strong>₱<?= htmlspecialchars($item['item_subtotal']); ?></strong> 
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Grand Total -->
+                                  <td class="text-success"><strong>₱<?= htmlspecialchars($order['grand_total']); ?></strong></td>
+                                  <!-- Status -->
+                                  <td>
+                                      <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                          <?= htmlspecialchars($order['status']); ?>
+                                      </span>
+                                  </td>
+                              </tr>
+                              <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
               </div>
@@ -651,83 +1055,210 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 aria-labelledby="to-receive-tab"
               >
               <h3 class="mt-4">Order Status</h3>
-              <div class="table-responsive">
-                  <table class="table table-striped table-hover align-middle">
+                <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
                     <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Quantity</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
+                        <tr>
+                            <th></th>
+                            <th>Order Number</th>
+                            <th>Product</th>
+                            <th>Color</th>
+                            <th>Yards</th>
+                            <th>Item Subtotal</th>
+                            <th>Grand Total</th>
+                            <th>Status</th>
+                        </tr>
                     </thead>
                     <tbody>
-                      <?php foreach ($order_data as $details): ?>
-                        <?php if ($details['status'] === 'To Receive'): ?>
-                          <tr>
-                            <!-- Product Image -->
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <!-- Order Details -->
-                            <td><strong><?= htmlspecialchars($details['order_num']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['quantity']); ?> Yards</td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['total_price']); ?></td>
-                            <!-- Status with Badge -->
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
-                          </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                        <?php 
+                        $grouped_orders = [];
+
+                        // Group orders by order number
+                        foreach ($order_data as $details) {
+                            $order_num = $details['order_num'];
+                            if (!isset($grouped_orders[$order_num])) {
+                                $grouped_orders[$order_num] = [
+                                    'order_num' => $details['order_num'],
+                                    'status' => $details['status'],
+                                    'sub_total' => $details['sub_total'],
+                                    'total_price' => $details['total_price'],
+                                    'items' => []
+                                ];
+                            }
+                            $grouped_orders[$order_num]['items'][] = $details;
+                        }
+
+                        // Display grouped orders
+                        foreach ($grouped_orders as $order): ?>
+                          <?php if ($order['status'] === 'To Receive'): ?>
+                            <tr>
+                                <!-- Product Image and Details -->
+                                <td>
+                                    <?php 
+                                    $displayed_images = []; // Array to track displayed images
+                                    foreach ($order['items'] as $item): 
+                                        if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                            $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                    ?>
+                                        <div>
+                                          <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                        </div>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    ?>
+                                </td>
+                                <!-- Order Number -->
+                                <td><strong><?= htmlspecialchars($order['order_num']); ?></strong></td>
+                                <!-- Product Details -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Color -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['color']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Yards -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['quantity']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Subtotal -->
+                                <td style="color: #dcaa2e;">₱<?= htmlspecialchars($order['sub_total']); ?></td>
+                                <!-- Grand Total -->
+                                <td class="text-success"><strong>₱<?= htmlspecialchars($order['total_price']); ?></strong></td>
+                                <!-- Status -->
+                                <td>
+                                    <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                        <?= htmlspecialchars($order['status']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
-
                 <h3 class="mt-4">Bulk Order Status</h3>
                 <div class="table-responsive">
                   <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Yards</th>
-                        <th>Rolls</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($bulk_order_data as $details): ?>
-                        <?php if ($details['status'] === 'To Receive'): ?>
+                      <thead class="table-dark">
                           <tr>
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <td><strong><?= htmlspecialchars($details['bulk_order_id']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['yards']); ?></td>
-                            <td><?= htmlspecialchars($details['rolls']); ?></td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['grand_total']); ?></td>
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
+                              <th></th>
+                              <th>Order Number</th>
+                              <th>Product Details</th>
+                              <th>Color</th>
+                              <th>Yards</th>
+                              <th>Rolls</th>
+                              <th>Item Subtotal</th>
+                              <th>Grand Total</th>
+                              <th>Status</th>
                           </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                      </thead>
+                      <tbody>
+                          <?php 
+                          $grouped_bulk_orders = [];
+
+                          // Group bulk orders by bulk_order_id
+                          foreach ($bulk_order_data as $details) {
+                              $bulk_order_id = $details['bulk_order_id'];
+                              if (!isset($grouped_bulk_orders[$bulk_order_id])) {
+                                  $grouped_bulk_orders[$bulk_order_id] = [
+                                      'bulk_order_id' => $details['bulk_order_id'],
+                                      'status' => $details['status'],
+                                      'grand_total' => $details['item_subtotal'],
+                                      'grand_total' => $details['grand_total'],
+                                      'items' => []
+                                  ];
+                              }
+                              $grouped_bulk_orders[$bulk_order_id]['items'][] = $details;
+                          }
+
+                          // Display grouped BULK ORDERS
+                          foreach ($grouped_bulk_orders as $order): ?>
+                            <?php if ($order['status'] === 'To Receive'): ?>
+                              <tr>
+                                  <!-- Product Images -->
+                                  <td>
+                                      <?php 
+                                      $displayed_images = []; // Array to track displayed images
+                                      foreach ($order['items'] as $item): 
+                                          if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                              $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                      ?>
+                                          <div>
+                                              <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                          </div>
+                                      <?php 
+                                          endif;
+                                      endforeach; 
+                                      ?>
+                                  </td>
+                                  <!-- Order Number -->
+                                  <td><strong><?= htmlspecialchars($order['bulk_order_id']); ?></strong></td>
+                                  <!-- Product Details -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Colors -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['color']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Yards -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['yards']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Rolls -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['rolls']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Item Subtotal -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div style="color: #dcaa2e; font-weight: lighter;">
+                                              <strong>₱<?= htmlspecialchars($item['item_subtotal']); ?></strong> 
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Grand Total -->
+                                  <td class="text-success"><strong>₱<?= htmlspecialchars($order['grand_total']); ?></strong></td>
+                                  <!-- Status -->
+                                  <td>
+                                      <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                          <?= htmlspecialchars($order['status']); ?>
+                                      </span>
+                                  </td>
+                              </tr>
+                              <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
               </div>
@@ -740,83 +1271,210 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 aria-labelledby="completed-tab"
               >
               <h3 class="mt-4">Order Status</h3>
-              <div class="table-responsive">
-                  <table class="table table-striped table-hover align-middle">
+                <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
                     <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Quantity</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
+                        <tr>
+                            <th></th>
+                            <th>Order Number</th>
+                            <th>Product</th>
+                            <th>Color</th>
+                            <th>Yards</th>
+                            <th>Item Subtotal</th>
+                            <th>Grand Total</th>
+                            <th>Status</th>
+                        </tr>
                     </thead>
                     <tbody>
-                      <?php foreach ($order_data as $details): ?>
-                        <?php if ($details['status'] === 'Completed'): ?>
-                          <tr>
-                            <!-- Product Image -->
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <!-- Order Details -->
-                            <td><strong><?= htmlspecialchars($details['order_num']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['quantity']); ?> Yards</td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['total_price']); ?></td>
-                            <!-- Status with Badge -->
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
-                          </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                        <?php 
+                        $grouped_orders = [];
+
+                        // Group orders by order number
+                        foreach ($order_data as $details) {
+                            $order_num = $details['order_num'];
+                            if (!isset($grouped_orders[$order_num])) {
+                                $grouped_orders[$order_num] = [
+                                    'order_num' => $details['order_num'],
+                                    'status' => $details['status'],
+                                    'sub_total' => $details['sub_total'],
+                                    'total_price' => $details['total_price'],
+                                    'items' => []
+                                ];
+                            }
+                            $grouped_orders[$order_num]['items'][] = $details;
+                        }
+
+                        // Display grouped orders
+                        foreach ($grouped_orders as $order): ?>
+                          <?php if ($order['status'] === 'Completed'): ?>
+                            <tr>
+                                <!-- Product Image and Details -->
+                                <td>
+                                    <?php 
+                                    $displayed_images = []; // Array to track displayed images
+                                    foreach ($order['items'] as $item): 
+                                        if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                            $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                    ?>
+                                        <div>
+                                          <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                        </div>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    ?>
+                                </td>
+                                <!-- Order Number -->
+                                <td><strong><?= htmlspecialchars($order['order_num']); ?></strong></td>
+                                <!-- Product Details -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Color -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['color']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Yards -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['quantity']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Subtotal -->
+                                <td style="color: #dcaa2e;">₱<?= htmlspecialchars($order['sub_total']); ?></td>
+                                <!-- Grand Total -->
+                                <td class="text-success"><strong>₱<?= htmlspecialchars($order['total_price']); ?></strong></td>
+                                <!-- Status -->
+                                <td>
+                                    <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                        <?= htmlspecialchars($order['status']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
-
                 <h3 class="mt-4">Bulk Order Status</h3>
                 <div class="table-responsive">
                   <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Yards</th>
-                        <th>Rolls</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($bulk_order_data as $details): ?>
-                        <?php if ($details['status'] === 'Completed'): ?>
+                      <thead class="table-dark">
                           <tr>
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <td><strong><?= htmlspecialchars($details['bulk_order_id']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['yards']); ?></td>
-                            <td><?= htmlspecialchars($details['rolls']); ?></td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['grand_total']); ?></td>
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
+                              <th></th>
+                              <th>Order Number</th>
+                              <th>Product Details</th>
+                              <th>Color</th>
+                              <th>Yards</th>
+                              <th>Rolls</th>
+                              <th>Item Subtotal</th>
+                              <th>Grand Total</th>
+                              <th>Status</th>
                           </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                      </thead>
+                      <tbody>
+                          <?php 
+                          $grouped_bulk_orders = [];
+
+                          // Group bulk orders by bulk_order_id
+                          foreach ($bulk_order_data as $details) {
+                              $bulk_order_id = $details['bulk_order_id'];
+                              if (!isset($grouped_bulk_orders[$bulk_order_id])) {
+                                  $grouped_bulk_orders[$bulk_order_id] = [
+                                      'bulk_order_id' => $details['bulk_order_id'],
+                                      'status' => $details['status'],
+                                      'grand_total' => $details['item_subtotal'],
+                                      'grand_total' => $details['grand_total'],
+                                      'items' => []
+                                  ];
+                              }
+                              $grouped_bulk_orders[$bulk_order_id]['items'][] = $details;
+                          }
+
+                          // Display grouped BULK ORDERS
+                          foreach ($grouped_bulk_orders as $order): ?>
+                            <?php if ($order['status'] === 'Completed'): ?>
+                              <tr>
+                                  <!-- Product Images -->
+                                  <td>
+                                      <?php 
+                                      $displayed_images = []; // Array to track displayed images
+                                      foreach ($order['items'] as $item): 
+                                          if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                              $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                      ?>
+                                          <div>
+                                              <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                          </div>
+                                      <?php 
+                                          endif;
+                                      endforeach; 
+                                      ?>
+                                  </td>
+                                  <!-- Order Number -->
+                                  <td><strong><?= htmlspecialchars($order['bulk_order_id']); ?></strong></td>
+                                  <!-- Product Details -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Colors -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['color']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Yards -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['yards']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Rolls -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['rolls']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Item Subtotal -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div style="color: #dcaa2e; font-weight: lighter;">
+                                              <strong>₱<?= htmlspecialchars($item['item_subtotal']); ?></strong> 
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Grand Total -->
+                                  <td class="text-success"><strong>₱<?= htmlspecialchars($order['grand_total']); ?></strong></td>
+                                  <!-- Status -->
+                                  <td>
+                                      <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                          <?= htmlspecialchars($order['status']); ?>
+                                      </span>
+                                  </td>
+                              </tr>
+                              <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
               </div>
@@ -829,87 +1487,215 @@ $bulk_order_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 aria-labelledby="cancelled-tab"
               >
               <h3 class="mt-4">Order Status</h3>
-              <div class="table-responsive">
-                  <table class="table table-striped table-hover align-middle">
+                <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
                     <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Quantity</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
+                        <tr>
+                            <th></th>
+                            <th>Order Number</th>
+                            <th>Product</th>
+                            <th>Color</th>
+                            <th>Yards</th>
+                            <th>Item Subtotal</th>
+                            <th>Grand Total</th>
+                            <th>Status</th>
+                        </tr>
                     </thead>
                     <tbody>
-                      <?php foreach ($order_data as $details): ?>
-                        <?php if ($details['status'] === 'Cancelled'): ?>
-                          <tr>
-                            <!-- Product Image -->
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <!-- Order Details -->
-                            <td><strong><?= htmlspecialchars($details['order_num']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['quantity']); ?> Yards</td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['total_price']); ?></td>
-                            <!-- Status with Badge -->
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
-                          </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                        <?php 
+                        $grouped_orders = [];
+
+                        // Group orders by order number
+                        foreach ($order_data as $details) {
+                            $order_num = $details['order_num'];
+                            if (!isset($grouped_orders[$order_num])) {
+                                $grouped_orders[$order_num] = [
+                                    'order_num' => $details['order_num'],
+                                    'status' => $details['status'],
+                                    'sub_total' => $details['sub_total'],
+                                    'total_price' => $details['total_price'],
+                                    'items' => []
+                                ];
+                            }
+                            $grouped_orders[$order_num]['items'][] = $details;
+                        }
+
+                        // Display grouped orders
+                        foreach ($grouped_orders as $order): ?>
+                          <?php if ($order['status'] === 'Cancelled'): ?>
+                            <tr>
+                                <!-- Product Image and Details -->
+                                <td>
+                                    <?php 
+                                    $displayed_images = []; // Array to track displayed images
+                                    foreach ($order['items'] as $item): 
+                                        if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                            $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                    ?>
+                                        <div>
+                                          <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                        </div>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    ?>
+                                </td>
+                                <!-- Order Number -->
+                                <td><strong><?= htmlspecialchars($order['order_num']); ?></strong></td>
+                                <!-- Product Details -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Color -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['color']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Yards -->
+                                <td>
+                                    <?php foreach ($order['items'] as $item): ?>
+                                        <div>
+                                            <?= htmlspecialchars($item['quantity']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <!-- Subtotal -->
+                                <td style="color: #dcaa2e;">₱<?= htmlspecialchars($order['sub_total']); ?></td>
+                                <!-- Grand Total -->
+                                <td class="text-success"><strong>₱<?= htmlspecialchars($order['total_price']); ?></strong></td>
+                                <!-- Status -->
+                                <td>
+                                    <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                        <?= htmlspecialchars($order['status']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
-
                 <h3 class="mt-4">Bulk Order Status</h3>
                 <div class="table-responsive">
                   <table class="table table-striped table-hover align-middle">
-                    <thead class="table-dark">
-                      <tr>
-                        <th></th>
-                        <th>Order Number</th>
-                        <th>Product Name</th>
-                        <th>Color</th>
-                        <th>Yards</th>
-                        <th>Rolls</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($bulk_order_data as $details): ?>
-                        <?php if ($details['status'] === 'Cancelled'): ?>
+                      <thead class="table-dark">
                           <tr>
-                            <td>
-                              <img src="<?= htmlspecialchars($details['product_image']) ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                            </td>
-                            <td><strong><?= htmlspecialchars($details['bulk_order_id']); ?></strong></td>
-                            <td><?= htmlspecialchars($details['product_name']); ?></td>
-                            <td><?= htmlspecialchars($details['color']); ?></td>
-                            <td><?= htmlspecialchars($details['yards']); ?></td>
-                            <td><?= htmlspecialchars($details['rolls']); ?></td>
-                            <td class="text-success">₱<?= htmlspecialchars($details['grand_total']); ?></td>
-                            <td>
-                              <span class="badge badge-to-pay">
-                                <?= htmlspecialchars($details['status']); ?>
-                              </span>
-                            </td>
+                              <th></th>
+                              <th>Order Number</th>
+                              <th>Product Details</th>
+                              <th>Color</th>
+                              <th>Yards</th>
+                              <th>Rolls</th>
+                              <th>Item Subtotal</th>
+                              <th>Grand Total</th>
+                              <th>Status</th>
                           </tr>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </tbody>
+                      </thead>
+                      <tbody>
+                          <?php 
+                          $grouped_bulk_orders = [];
+
+                          // Group bulk orders by bulk_order_id
+                          foreach ($bulk_order_data as $details) {
+                              $bulk_order_id = $details['bulk_order_id'];
+                              if (!isset($grouped_bulk_orders[$bulk_order_id])) {
+                                  $grouped_bulk_orders[$bulk_order_id] = [
+                                      'bulk_order_id' => $details['bulk_order_id'],
+                                      'status' => $details['status'],
+                                      'grand_total' => $details['item_subtotal'],
+                                      'grand_total' => $details['grand_total'],
+                                      'items' => []
+                                  ];
+                              }
+                              $grouped_bulk_orders[$bulk_order_id]['items'][] = $details;
+                          }
+
+                          // Display grouped BULK ORDERS
+                          foreach ($grouped_bulk_orders as $order): ?>
+                            <?php if ($order['status'] === 'Cancelled'): ?>
+                              <tr>
+                                  <!-- Product Images -->
+                                  <td>
+                                      <?php 
+                                      $displayed_images = []; // Array to track displayed images
+                                      foreach ($order['items'] as $item): 
+                                          if (!in_array($item['product_image'], $displayed_images)): // Check if the image is not already displayed
+                                              $displayed_images[] = $item['product_image']; // Add the image to the displayed list
+                                      ?>
+                                          <div>
+                                              <img src="<?= htmlspecialchars($item['product_image']); ?>" alt="Product Image" class="rounded" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; margin-bottom: 5px; margin-left: 5px;">
+                                          </div>
+                                      <?php 
+                                          endif;
+                                      endforeach; 
+                                      ?>
+                                  </td>
+                                  <!-- Order Number -->
+                                  <td><strong><?= htmlspecialchars($order['bulk_order_id']); ?></strong></td>
+                                  <!-- Product Details -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <strong><?= htmlspecialchars($item['product_name']); ?></strong>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Colors -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['color']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Yards -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['yards']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Rolls -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div>
+                                              <?= htmlspecialchars($item['rolls']); ?>
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>   
+                                  <!-- Item Subtotal -->
+                                  <td>
+                                      <?php foreach ($order['items'] as $item): ?>
+                                          <div style="color: #dcaa2e; font-weight: lighter;">
+                                              <strong>₱<?= htmlspecialchars($item['item_subtotal']); ?></strong> 
+                                          </div>
+                                      <?php endforeach; ?>
+                                  </td>
+                                  <!-- Grand Total -->
+                                  <td class="text-success"><strong>₱<?= htmlspecialchars($order['grand_total']); ?></strong></td>
+                                  <!-- Status -->
+                                  <td>
+                                      <span class="badge <?= htmlspecialchars('badge-' . strtolower(str_replace(' ', '-', $order['status']))); ?>">
+                                          <?= htmlspecialchars($order['status']); ?>
+                                      </span>
+                                  </td>
+                              </tr>
+                              <?php endif; ?>
+                          <?php endforeach; ?>
+                      </tbody>
                   </table>
                 </div>
               </div>
-              </div>
+              <!-- End of Displays -->
+            </div>
             </div>
           </div>
         </div>
