@@ -22,3 +22,4 @@
 ------> [bulk_checkout.php] - proper display of details\
 ------> [mypurchase.php] - proper display of details for bulk orders (no filtering)\
 12/01 > [mypurchase.php] - proper display of details for normal and bulk orders (w/ filtering)\
+12/02 > [mypurchase.php] - proper display of details for normal and bulk orders, same container for items w/ the same order_id & bulk_order_id\
