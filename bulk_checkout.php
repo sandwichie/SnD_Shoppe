@@ -42,12 +42,6 @@ $stmtBulkSubtotal->execute(['user_id' => $user_id]);
 $result = $stmtBulkSubtotal->fetch(PDO::FETCH_ASSOC);
 $bulkGrandTotal = $result['bulksubtotal'] ?? 0;
 
-// Fetch default place for shipping
-$stmt = $pdo->prepare('SELECT place FROM users_credentials WHERE id = :user_id');
-$stmt->execute(['user_id' => $user_id]);
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
-$place = $row['place'] ?? '';
-
 $payment_id = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['proof'])) {
@@ -104,6 +98,7 @@ if (empty($delivery_method) || empty($delivery_date)) {
     exit;
 }
 
+// REGULAR ORDER
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     try {
         $pdo->beginTransaction();
@@ -127,8 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         // Insert each cart item into bulk_order_items table
         foreach ($bulk_items as $product) {
             $stmt = $pdo->prepare("
-                INSERT INTO bulk_order_items (bulk_order_id, product_id, product_name, color, yards, unit_price, rolls, roll_price) 
-                VALUES (:order_num, :product_id, :product_name, :color, :yards, :unit_price, :rolls, :roll_price)
+                INSERT INTO bulk_order_items (bulk_order_id, product_id, product_name, color, yards, rolls, item_subtotal) 
+                VALUES (:order_num, :product_id, :product_name, :color, :yards, :rolls, :itemsubtotal)
             ");
             $stmt->execute([
                 ':order_num' => $bulk_order_id,
@@ -136,9 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                 ':product_name' => $product['product'],
                 ':color' => $product['color'],
                 ':yards' => $product['yards'],
-                ':unit_price' => $product['unit_price'],
                 ':rolls' => $product['rolls'],
-                ':roll_price' => $product['roll_price'],
+                ':itemsubtotal' => $product['item_subtotal'],
             ]);
         }
 
@@ -159,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     exit;
 }
 
+// COD ORDER
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cod_place_order'])) {
     try {
         $pdo->beginTransaction();
@@ -183,8 +178,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cod_place_order'])) {
         // Insert each cart item into bulk_order_items table
         foreach ($bulk_items as $product) {
             $stmt = $pdo->prepare("
-                INSERT INTO bulk_order_items (bulk_order_id, product_id, product_name, color, yards, unit_price, rolls, roll_price) 
-                VALUES (:order_num, :product_id, :product_name, :color, :yards, :unit_price, :rolls, :roll_price)
+                INSERT INTO bulk_order_items (bulk_order_id, product_id, product_name, color, yards, unit_price, rolls, roll_price, item_subtotal) 
+                VALUES (:order_num, :product_id, :product_name, :color, :yards, :unit_price, :rolls, :roll_price, :itemsubtotal)
             ");
             $stmt->execute([
                 ':order_num' => $bulk_order_id,
@@ -195,6 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cod_place_order'])) {
                 ':unit_price' => $product['unit_price'],
                 ':rolls' => $product['rolls'],
                 ':roll_price' => $product['roll_price'],
+                ':itemsubtotal' => $product['item_subtotal'],
             ]);
         }
 
