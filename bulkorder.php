@@ -30,7 +30,7 @@ $bulk_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $bulk_colors = []; // Initialize the array
 foreach ($bulk_items as $bulk) {
-    $stmtColors = $pdo->prepare('SELECT color_id, color_name FROM product_colors WHERE product_id = :product_id');
+    $stmtColors = $pdo->prepare('SELECT color_id, color_name, yards, rolls FROM product_colors WHERE product_id = :product_id');
     $stmtColors->execute(['product_id' => $bulk['product_id']]);
     $colors = $stmtColors->fetchAll(PDO::FETCH_ASSOC);
 
@@ -768,6 +768,22 @@ h1, h3 {
                         <div class="product-details border rounded shadow-sm p-3 d-flex flex-column" style="margin-bottom: 15px;">
                             <h2 class="text-dark mb-3" style="font-weight: bold;"><?php echo htmlspecialchars($bulk['product']); ?></h2>
 
+                            <!-- Color Selector -->
+                            <div class="selector mt-3" style="margin-bottom: 25px; margin-top: -30px;">
+                                <label class="form-label">Available Colors:</label>
+                                <div class="color-options d-flex flex-wrap">
+                                    <select class="form-select shadow-sm" name="color_option[<?php echo $bulk['bulk_cart_id']; ?>]">
+                                        <?php if (!empty($bulk_colors[$bulk['product_id']])): ?>
+                                        <?php foreach ($bulk_colors[$bulk['product_id']] as $color): ?>
+                                            <option value="<?php echo htmlspecialchars($color['color_name']); ?>"><?php echo htmlspecialchars($color['color_name']); ?><?php echo htmlspecialchars($color['yards']); ?><?php echo htmlspecialchars($color['rolls']); ?></option>
+                                        <?php endforeach; ?>
+                                        <?php else: ?>
+                                        <option>No colors available</option>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                            </div>
+
                             <p>
                                 <h6 style="font-size: 15px; margin-top: -23px; color:#1e1e1e; text-align: justify">Type in <span style="font-weight: bold; font-size: 20px; color: #198754;">'0'</span> in the number inputs to not select per YARD or per ROLL.</h4>
                             </p>
@@ -830,21 +846,6 @@ h1, h3 {
                                 <span id="subtotal-<?php echo $bulk['bulk_cart_id']; ?>" class="price text-success">P 0.00</span>
                             </p>
 
-                            <!-- Color Selector -->
-                            <div class="selector mt-3">
-                                <label class="form-label">Available Colors:</label>
-                                <div class="color-options d-flex flex-wrap">
-                                    <select class="form-select shadow-sm" name="color_option[<?php echo $bulk['bulk_cart_id']; ?>]">
-                                        <?php if (!empty($bulk_colors[$bulk['product_id']])): ?>
-                                        <?php foreach ($bulk_colors[$bulk['product_id']] as $color): ?>
-                                            <option value="<?php echo htmlspecialchars($color['color_name']); ?>"><?php echo htmlspecialchars($color['color_name']); ?></option>
-                                        <?php endforeach; ?>
-                                        <?php else: ?>
-                                        <option>No colors available</option>
-                                        <?php endif; ?>
-                                    </select>
-                                </div>
-                            </div>
                             <!-- Remove Button -->
                             <form method="POST" action="">
                                 <input type="hidden" name="bulk_cart_id" value="<?php echo $bulk['bulk_cart_id']; ?>" />
