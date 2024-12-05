@@ -1,3 +1,4 @@
+
 <?php
 session_start();
 
@@ -37,7 +38,7 @@ $stmt->execute(['product_id' => $product_id]);
 $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Query to get the product colors 
-$stmtColors = $pdo->prepare('SELECT product_pic, color_name FROM product_colors WHERE product_id = :product_id');
+$stmtColors = $pdo->prepare('SELECT product_pic, color_name, yards, rolls FROM product_colors WHERE product_id = :product_id');
 $stmtColors->execute(['product_id' => $product_id]);
 $product_colors = $stmtColors->fetchAll(PDO::FETCH_ASSOC);
 
@@ -69,6 +70,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['cart'])) {
     // Redirect to cart page after adding to cart
     header("Location: cart.php");
     
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['buy'])) {
+    $quantity = isset($_POST['qty']) ? intval($_POST['qty']) : 1;
+    $color = isset($_POST['color']) ? $_POST['color'] : '';
+    $total_price = $product['price'] * $quantity;
+
+    // Insert into shopping_cart table
+    $stmt = $pdo->prepare("INSERT INTO shopping_cart (product_id, product, unit_price, quantity, customer_id, lastname, firstname, color, total_price) 
+                           VALUES (:product_id, :product_name, :price, :quantity, :customer_id, :lastname, :firstname, :color, :total_price)");
+    $stmt->execute([
+        ':product_id' => $product_id,
+        ':product_name' => $product['product_name'],
+        ':price' => $product['price'],
+        ':quantity' => $quantity,
+        ':customer_id' => $user_id,
+        ':lastname' => $user['lastname'],
+        ':firstname' => $user['firstname'],
+        ':color' => $color,
+        ':total_price' => $total_price
+    ]);
+
+    // Fetch the last inserted item for the current user
+    $stmt = $pdo->prepare("SELECT cart_id FROM shopping_cart WHERE customer_id = :customer_id ORDER BY cart_id DESC LIMIT 1");
+    $stmt->execute([':customer_id' => $user_id]);
+    $last_item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($last_item) {
+        // Redirect to checkout page with the cart_id of the last item
+        header("Location: checkout.php?cart_id=" . $last_item['cart_id']);
+    } else {
+        echo "Error: Unable to fetch the last item.";
+    }
+    exit;
 }
 
 // Handle form submission
@@ -175,30 +210,6 @@ if ($ratingFilter > 0) {
 // Fetch all reviews
 $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['buy'])) {
-    $quantity = isset($_POST['qty']) ? intval($_POST['qty']) : 1;
-    $color = isset($_POST['color']) ? $_POST['color'] : '';
-    $total_price = $product['price'] * $quantity;
-
-    // Insert into shopping_cart table
-    $stmt = $pdo->prepare("INSERT INTO shopping_cart (product_id, product, unit_price, quantity, customer_id, lastname, firstname, color, total_price) 
-                           VALUES (:product_id, :product_name, :price, :quantity, :customer_id, :lastname, :firstname, :color, :total_price)");
-    $stmt->execute([
-        ':product_id' => $product_id,
-        ':product_name' => $product['product_name'],
-        ':price' => $product['price'],
-        ':quantity' => $quantity,
-        ':customer_id' => $user_id,
-        ':lastname' => $user['lastname'],
-        ':firstname' => $user['firstname'],
-        ':color' => $color,
-        ':total_price' => $total_price
-    ]);
-
-    // Redirect to cart page after adding to cart
-    header("Location: checkout.php");
-    exit;
-}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['bulk'])) {
     try {
@@ -224,6 +235,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['bulk'])) {
     }
 }
 
+// Fetch unread notifications
+$query_notifications = "SELECT notif_id, message FROM notifications WHERE id = ? AND is_read = 0";
+$stmt_notifications = $pdo->prepare($query_notifications);
+$stmt_notifications->bindValue(1, $user_id, PDO::PARAM_INT);
+$stmt_notifications->execute();
+$result_notifications = $stmt_notifications->fetchAll(PDO::FETCH_ASSOC);
+
+if (isset($_GET['notif_id']) && is_numeric($_GET['notif_id'])) {
+    $notif_id = intval($_GET['notif_id']);
+
+    $query_check_notif = "SELECT notif_id FROM notifications WHERE notif_id = ? AND id = ?";
+    $stmt_check_notif = $pdo->prepare($query_check_notif);
+    $stmt_check_notif->execute([$notif_id, $user_id]);
+
+    if ($stmt_check_notif->rowCount() > 0) {
+        // Mark the notification as read
+        $query_update_read = "UPDATE notifications SET is_read = 1 WHERE notif_id = ?";
+        $stmt_update_read = $pdo->prepare($query_update_read);
+        $stmt_update_read->execute([$notif_id]);
+
+        echo json_encode(['status' => 'success', 'message' => 'Notification marked as read']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Notification not found or does not belong to this user']);
+    }
+}
+
+// Query to count unread notifications
+$query_count_unread = "SELECT COUNT(*) FROM notifications WHERE id = ? AND is_read = 0";
+$stmt_count_unread = $pdo->prepare($query_count_unread);
+$stmt_count_unread->bindValue(1, $user_id, PDO::PARAM_INT);
+$stmt_count_unread->execute();
+$unread_count = $stmt_count_unread->fetchColumn();
+
+
 ?>
 
 <!DOCTYPE html>
@@ -236,6 +281,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['bulk'])) {
     <link rel="stylesheet" >
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <title>S&D Fabrics</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@100..900&family=Playfair+Display+SC:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
@@ -250,6 +296,7 @@ body {
     overflow-y: auto; 
     margin: 0; 
     padding: 0; 
+    font-family: "Playfair Display", serif;
 }
 
 .navbar {
@@ -990,6 +1037,47 @@ input[type=number]::-webkit-outer-spin-button {
         height: 25px;
     }
 }
+#notification-dropdown {
+    position: absolute;
+    top: 70px; /* Adjust as per your layout */
+    right: 20px;
+    width: 200px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    display: none; /* Initially hidden */
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#notification-dropdown li {
+    padding: 10px 16px;
+    color: #333;
+    cursor: pointer;
+}
+
+#notification-dropdown li:hover {
+    background-color: #f1e8d9;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 50%;
+}
+#unread-count {
+    display: inline-block; /* Ensures it's visible initially */
+    background: red;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 5px;
+    font-size: 12px;
+    position: absolute;
+    margin-left:-10px;
+  
+}
         </style>
 </head>
 <body class="vh-100">
@@ -1005,17 +1093,6 @@ input[type=number]::-webkit-outer-spin-button {
             </button>
 
             <div class="collapse navbar-collapse" id="navbarTogglerDemo01">
-                <div class="mx-auto d-flex justify-content-center flex-grow-1">
-                    <form class="search-bar" role="search">
-                        <div class="input-group">
-                            <span class="input-group-text" id="basic-addon1">
-                                <i class="bi bi-search search-icon"></i>
-                            </span>
-                            <input class="form-control" type="search" placeholder="Search..." aria-label="Search" aria-describedby="basic-addon1">
-                        </div>
-                    </form>
-                </div>
-
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link nav-link-black active" aria-current="page" href="cart.php">
@@ -1023,15 +1100,25 @@ input[type=number]::-webkit-outer-spin-button {
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link nav-link-black" href="#">
+                        <a class="nav-link nav-link-black" href="#" id="notification-icon">
                             <img src="Assets/svg(icons)/notifications.svg" alt="notif">
+                            <?php if ($unread_count > 0): ?>
+                                <span class="badge badge-danger" id="unread-count"><?php echo $unread_count; ?></span>
+                            <?php endif; ?>
                         </a>
+                        <ul id="notification-dropdown">
+                            <?php
+                            if (empty($result_notifications)) {
+                                echo '<li>No new notifications</li>';
+                            } else {
+                            foreach ($result_notifications as $notification) {
+                                echo '<li data-notif-id="' . htmlspecialchars($notification['notif_id']) . '">' 
+                                    . htmlspecialchars($notification['message']) . '</li>';
+                            } }
+                            ?>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link nav-link-black" href="#">
-                            <img src="Assets/svg(icons)/inbox.svg" alt="inbox">
-                        </a>
-                    </li>
+
 
                     <!-- Account Dropdown Menu -->
                     <li class="nav-item dropdown">
@@ -1039,7 +1126,7 @@ input[type=number]::-webkit-outer-spin-button {
                             <img src="Assets/svg(icons)/account_circle.svg" alt="account">
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
-                            <li><a class="dropdown-item" href="accountSettings.php">Account & Security</a></li>
+                            <li><a class="dropdown-item" href="mypurchase.php">My Account</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="haveacc.php">Logout</a></li>
                         </ul>
@@ -1053,12 +1140,8 @@ input[type=number]::-webkit-outer-spin-button {
             <button class="btn-close" onclick="window.location.href='homepage.php';" aria-label="Close">✖</button>
             <!-- Image Section -->
             <div class="col-md-6 product-image text-center">
-                <img alt="Product Image" class="img-fluid" style="width: 100%; height: 100%">
-                <script>
-                    // Pass the available colors to JavaScript
-                    let colors = <?= json_encode(array_column($product_colors, 'product_pic')) ?>;
-                </script>    
-
+                <img id="product-img" src="<?= htmlspecialchars($product_colors[0]['product_pic']) ?>" 
+                    alt="<?= htmlspecialchars($product_colors[0]['color_name']) ?>" class="img-fluid" style="width: 100%; height: 100%;">
                 <div class="mt-3">
                     <div class="button-container">
                         <button class="btn btn-secondary" onclick="prevColor()">
@@ -1076,18 +1159,23 @@ input[type=number]::-webkit-outer-spin-button {
                 <h1><?= htmlspecialchars($product['product_name']) ?></h1>
                 <p>Price: <span class="price-tag"><?= htmlspecialchars($product['price']) ?></span> per yard</p>
                 <p>Roll Price: <span class="price-tag"><?= htmlspecialchars($product['roll_price']) ?></span> per roll</p>
-                <p>Available Stocks: <span><?= htmlspecialchars($product['quantity']) ?> Yards</span></p>
+                <p>Available Stocks(Yards): <span id="available-yards" class="price-tag" style="font-size: 17px;"><?= htmlspecialchars($product_colors[0]['yards']) ?> Yards</span></p>
+                <p style="margin-top: -15px;">Available Stocks(Rolls): <span id="available-stocks" class="price-tag" style="font-size: 17px;"><?= htmlspecialchars($product_colors[0]['rolls']) ?> Rolls</span></p>
 
                 <!-- Color Options Section -->
                 <h6>Available Colors:</h6>
-                    <div class="color-options d-flex flex-wrap justify-content-center">
-                        <?php foreach ($product_colors as $index => $color): ?>
-                            <button class="color-btn" onclick="changeColor(<?= $index ?>)">
-                                <?= htmlspecialchars($color['color_name']) ?>
-                                <img src="<?= htmlspecialchars($color['product_pic']) ?>" alt="<?= htmlspecialchars($color['color_name']) ?>" class="color-swatch">
-                            </button>
-                        <?php endforeach; ?>
-                    </div>
+                <div class="color-options d-flex flex-wrap justify-content-center">
+                    <?php foreach ($product_colors as $index => $color): ?>
+                        <button 
+                            class="color-btn" 
+                            onclick="selectColor(<?= $index ?>)"
+                            <?= $color['yards'] == 0 ? 'disabled' : '' ?>
+                        >
+                            <?= htmlspecialchars($color['color_name']) ?>
+                            <img src="<?= htmlspecialchars($color['product_pic']) ?>" alt="<?= htmlspecialchars($color['color_name']) ?>" class="color-swatch">
+                        </button>
+                    <?php endforeach; ?>
+                </div>
 
                 <!-- Counter Section -->
                 <form method="POST" action="">
@@ -1096,7 +1184,7 @@ input[type=number]::-webkit-outer-spin-button {
                         <p class="qty">
                             <label for="qty">Quantity <br>(Max. of 29 Yards):</label>
                             <button class="qtyminus" aria-hidden="true">&minus;</button>
-                            <input type="number" name="qty" id="qty" min="1" max="100" step="1" value="1">
+                            <input type="number" name="qty" id="qty" min="1" max="29" step="1" value="1">
                             <button class="qtyplus" aria-hidden="true">&plus;</button>
                         </p>		
                 </div>
@@ -1106,20 +1194,36 @@ input[type=number]::-webkit-outer-spin-button {
                         <img src="Assets/svg(icons)/shopping_cart.svg" alt="cart"> Add To Cart
                     </button>
                 
-                    </form>
-                        <form method="POST" action="">
-                        <button class="btn-custom buy-now" name="buy">Buy Now</button>
+                        <button type= "submit"class="btn-custom" name="buy">Buy Now</button>
                         </div>
                     </form>
 
                     <p style="margin-left: 60px; margin-bottom: -5px">Want to order 30+ Yards or per Roll?</p>
                     
+                    <?php
+                    // Check if all rolls are zero
+                    $allRollsZero = array_reduce($product_colors, function ($carry, $color) {
+                        return $carry && $color['rolls'] == 0;
+                    }, true);
+
+                    // If all rolls are zero and yard quantity is lower than 30, disable the button.
+                    $disableBulkOrder = ($allRollsZero && array_reduce($product_colors, function ($carry, $color) {
+                        return $carry && $color['yards'] < 30;
+                    }, true));
+                    ?>
+
+                    <!-- Bulk Order Button Form -->
                     <form method="POST" action="">
-                        <button type="submit" class="btn-custom" name="bulk" style="margin-left: 90px;">
+                        <button 
+                            type="submit" 
+                            class="btn-custom" 
+                            name="bulk" 
+                            style="margin-left: 90px;"
+                            <?= $disableBulkOrder ? 'disabled' : '' ?>
+                        >
                             <img src="Assets/svg(icons)/shopping_cart.svg" alt="bulk">Bulk Order
                         </button>
                     </form>
-
                 </div>
                 
                 <div class="details">
@@ -1252,40 +1356,48 @@ input[type=number]::-webkit-outer-spin-button {
             </div>
         </div>
     </div>
-        <script>   
+<script>   
 
 let currentColorIndex = 0;
+let colors = <?= json_encode($product_colors) ?>; // Array of product colors (with `product_pic`, `color_name`, `rolls`)
 
-// Function to change the product image based on the selected color
-function changeColor(index) {
+// Function to update the product image and stock
+function selectColor(index) {
     currentColorIndex = index;
-    const productImage = document.querySelector(".product-image img");
-    const colorInput = document.querySelector("input[name='color']"); // Hidden input for color
-    if (productImage) {
-        productImage.src = colors[index];
-        productImage.onerror = function () {
-            console.error("Failed to load image:", colors[index]);
-            productImage.src = "Assets/fallback.jpg"; // Fallback image in case of error
-        };
-    }
-    // Update hidden color input with the selected color name
-    colorInput.value = document.querySelectorAll(".color-btn")[index].textContent.trim();
+    const productImage = document.getElementById("product-img");
+    const availableStocks = document.getElementById("available-stocks");
+    const availableYards = document.getElementById("available-yards");
+
+    // Update the product image
+    productImage.src = colors[index].product_pic;
+    productImage.alt = colors[index].color_name;
+
+    // Handle fallback in case of broken image
+    productImage.onerror = function () {
+        console.error("Failed to load image:", colors[index].product_pic);
+        productImage.src = "Assets/fallback.jpg"; // Replace with a fallback image
+    };
+
+    // Update the available stocks
+    availableStocks.innerText = colors[index].rolls + " Rolls";
+    availableYards.innerText = colors[index].yards + " Yards";
+
 }
 
-// Functions for previous and next buttons
+// Functions for navigation buttons
 function prevColor() {
     currentColorIndex = (currentColorIndex - 1 + colors.length) % colors.length;
-    changeColor(currentColorIndex);
+    selectColor(currentColorIndex);
 }
 
 function nextColor() {
     currentColorIndex = (currentColorIndex + 1) % colors.length;
-    changeColor(currentColorIndex);
+    selectColor(currentColorIndex);
 }
 
 // Initial display of the first color
 window.onload = function () {
-    changeColor(currentColorIndex);
+    selectColor(currentColorIndex);
 };
 
 // Add event listener for keydown events
@@ -1355,8 +1467,63 @@ function closeForm() {
     }, 300); // Match the transition duration
     document.getElementById("overlay").classList.remove("show");
 }
+</script>
+<script>
+$(document).ready(function () {
+    // Handle notification item click
+    $('#notification-dropdown').on('click', 'li', function () {
+        var notifId = $(this).data('notif-id'); // Get notif_id from the clicked notification
+
+        if (notifId) {
+            // Make an AJAX request to mark the notification as read
+            $.ajax({
+                url: 'homepage.php', // PHP script to handle notification read
+                method: 'GET',
+                data: { notif_id: notifId },
+                success: function (response) {
+                    var result = JSON.parse(response);
+
+                    if (result.status === 'success') {
+                        // Remove the clicked notification
+                        $('li[data-notif-id="' + notifId + '"]').remove();
+
+                        // Update the unread count
+                        var unreadCountElement = $('#unread-count');
+                        var unreadCount = parseInt(unreadCountElement.text(), 10);
+
+                        if (unreadCount > 1) {
+                            unreadCountElement.text(unreadCount - 1);
+                        } else {
+                            unreadCountElement.fadeOut(); // Hide the badge when count reaches 0
+                        }
+                    } else {
+                        console.error('Error: ' + result.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('AJAX error:', error);
+                }
+            });
+        }
+    });
+
+    // Toggle notification dropdown visibility
+    $('#notification-icon').on('click', function (e) {
+        e.preventDefault();
+        $('#notification-dropdown').toggle(); // Toggle dropdown visibility
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on('click', function (e) {
+        if (!$('#notification-icon').is(e.target) && $('#notification-icon').has(e.target).length === 0 &&
+            !$('#notification-dropdown').is(e.target) && $('#notification-dropdown').has(e.target).length === 0) {
+            $('#notification-dropdown').hide();
+        }
+    });
+});
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
